@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+require "macabee"
+require "json"
+
+abid = ARGV.first
+
+ab = Macabee::Contacts.new
+contact = ab.fetch(abid)
+if contact
+  puts JSON.pretty_generate(contact.to_hash)
+else
+  $stderr.puts "No such contact #{abid}"
+end
