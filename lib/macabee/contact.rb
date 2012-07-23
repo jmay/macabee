@@ -1,32 +1,38 @@
-# Macabee::Contacts is ruby representation of Mac Address Book
+# Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-require "appscript"
+require "active_support/core_ext"
 
-class Macabee::Contacts
-  attr_reader :ab, :contacts
+class Macabee::Contact
+  attr_reader :person
 
   # suck all the contacts from local MacOSX Address Book into a single array
-  def initialize
-    @ab = Appscript.app("Address Book")
+  def initialize(person)
+    @person = person
   end
 
-  def fetch(ab_id)
-    (rec = @ab.people.ID(ab_id)) && transform(rec)
+  def transformed
+    @transformed ||= transform
   end
 
-  def all
-    @contacts ||= @ab.people.get.map {|c| transform(c)}
+  def to_hash
+    transformed
+  end
+
+  def unroll(ary, field)
+    ary.each_with_object({}) do |hash, memo|
+      memo[hash[field]] = hash.reject {|k,v| k == field}
+    end
   end
 
   # transform an individual contact to our standard structure
-  def transform(p)
+  def transform
     raw = {
-      :properties => p.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)},
-      :addresses => p.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
-      :emails => p.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :phones => p.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :urls => p.urls.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :social_profiles => p.social_profiles.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
+      :properties => person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)},
+      :addresses => person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
+      :emails => person.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+      :phones => person.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+      :urls => person.urls.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+      :social_profiles => person.social_profiles.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
     }
     tweaked = {}
     raw.each do |k,v|
@@ -64,9 +70,9 @@ class Macabee::Contacts
         'ab' => abxref
       },
       'phones' => phones,
-      'addresses' => c['addresses'].unroll('label'),
+      'addresses' => unroll(c['addresses'], 'label'),
       'emails' => emails,
-      'links' => c['urls'].unroll('label').merge(c['social_profiles'].unroll('service_name'))
+      'links' => unroll(c['urls'], 'label').merge(unroll(c['social_profiles'], 'service_name'))
     }.reject {|k,v| v.nil? || v.empty?}
   end
 end
