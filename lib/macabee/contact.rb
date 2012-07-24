@@ -48,61 +48,138 @@ class Macabee::Contact
     # puts JSON.pretty_generate(transformed)
     # puts "...TO..."
     # puts JSON.pretty_generate(target_hash)
-    HashDiff.diff(transformed, target_hash)
+
+    # HashDiff.diff(transformed, target_hash)
+
+    %w(name business other phones emails links).each_with_object({}) do |k,diffs|
+      diffs[k] = case transformed[k]
+      when Hash
+        HashDiff.diff(transformed[k], target_hash[k])
+        # transformed[k].diff(target_hash[k])
+      when Array
+        Macabee::Util.hasharraydiff(transformed[k], target_hash[k])
+      else
+        raise "can't deal with #{k} in #{transformed}"
+      end
+    end
   end
 
-  def patch(diff)
-    diff.each do |action,field,v1,v2|
-      abfield = @@mappings[field] || "#{field}-UNMAPPED"
+  def patch(diffs)
+    diffs.each do |k,diff|
+      case diff
+      when Array
+        # if diff.empty?
+        #   puts "No changes for #{k}"
+        # end
+        diff.each do |action,field,v1,v2|
+          abfield = @@mappings["#{k}.#{field}"]
+          raise "unmapped field #{k}" unless abfield
 
-      case action
-      when '~' # replace
-        puts "person.#{abfield}.set('#{v2}')"
-        person.send(abfield).set(v2)
+          case action
+          when '~' # replace
+            puts "person.#{abfield}.set('#{v2}')"
+            # person.send(abfield).set(v2)
 
-      when '+' # add
-        case v1
-        when Hash
-          value = case abfield
-          when :phone
-            {
-              :label => v1.keys.first,
-              :value => v1.values.first['phone']
-            }
-          when :email
-            {
-              :label => v1.keys.first,
-              :value => v1.values.first['email']
-            }
+          when '+' # add
+            puts "person.#{abfield}.set('#{v1}')"
+
+          when '-' # delete
+            puts "person.#{abfield}.delete"
+
           else
-            raise "unknown field '#{abfield}' updated"
+            raise "unknown action [#{diff}] for #{k}"
           end
-
-          puts "ab.make(:new => #{abfield}, :at => #{self}, :with_properties => #{value.inspect}"
-          person.make(:new => abfield, :at => person, :with_properties => value)
-
-        else # should be String
-          puts "person.#{abfield}.set('#{v1}')"
-          person.send(abfield).set(v1)
         end
 
-      when '-' # delete
-        case abfield
-        when :phone, :email
-          puts "person.send(#{field}).get.select {|x| x.label.get == #{v1.keys.first}}.first.delete"
-          rec = person.send(field).get.select {|x| x.label.get == v1.keys.first}.first
-          rec.delete
+      when Hash
+        abfield = @@mappings[k]
+        case k
+        when 'phones', 'emails'
+          diff[:deletes].each do |index|
+            puts "person.send(#{k}).get[#{index}].delete"
+          end
+          diff[:adds].each do |hash|
+            puts "ab.make(:new => :#{abfield}, :at => #{self}, :with_properties => #{hash.inspect}"
+          end
+
+        when 'links'
+          # figure out what type of object this is (url, social profile, im handle) and Do The Right Thing
+
+          diff[:deletes].each do |index|
+            delete_link(transformed['links'][index])
+          end
+          diff[:adds].each do |hash|
+            meth = linktype(hash)
+            puts "ab.make(:new => :#{meth}, :at => #{self}, :with_properties => #{hash.inspect}"
+          end
+
+          # if diff[:deletes].any? || diff[:adds].any?
+          #   raise "links are not supported yet"
+          # end
+
         else
-          puts "person.#{abfield}.delete"
-          person.send(abfield).delete
+          raise "unmapped field #{k}"
         end
 
       else
-        raise "unknown action '#{action}'"
+        raise "cannot apply diff #{diff.inspect} for #{k}"
       end
+
     end
     puts "person.save"
-    # person.save
+
+      # diff.each do |action,field,v1,v2|
+      #   abfield = @@mappings[field] || "#{field}-UNMAPPED"
+
+      #   case action
+      #   when '~' # replace
+      #     puts "person.#{abfield}.set('#{v2}')"
+      #     person.send(abfield).set(v2)
+
+      #   when '+' # add
+      #     case v1
+      #     when Hash
+      #       value = case abfield
+      #       when :phone
+      #         {
+      #           :label => v1.keys.first,
+      #           :value => v1.values.first['phone']
+      #         }
+      #       when :email
+      #         {
+      #           :label => v1.keys.first,
+      #           :value => v1.values.first['email']
+      #         }
+      #       else
+      #         raise "unknown field '#{abfield}' updated"
+      #       end
+
+      #       puts "ab.make(:new => #{abfield}, :at => #{self}, :with_properties => #{value.inspect}"
+      #       person.make(:new => abfield, :at => person, :with_properties => value)
+
+      #     else # should be String
+      #       puts "person.#{abfield}.set('#{v1}')"
+      #       person.send(abfield).set(v1)
+      #     end
+
+      #   when '-' # delete
+      #     case abfield
+      #     when :phone, :email
+      #       puts "person.send(#{field}).get.select {|x| x.label.get == #{v1.keys.first}}.first.delete"
+      #       rec = person.send(field).get.select {|x| x.label.get == v1.keys.first}.first
+      #       rec.delete
+      #     else
+      #       puts "person.#{abfield}.delete"
+      #       person.send(abfield).delete
+      #     end
+
+      #   else
+      #     raise "unknown action '#{action}'"
+      #   end
+      # end
+      # puts "person.save"
+      # # person.save
+    # end
   end
 
   # transform an individual contact to our standard structure
@@ -147,6 +224,9 @@ class Macabee::Contact
       'xref' => {
         'ab' => base_properties[:id_]
       },
+
+      # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
+      # a standardized order for list comparison purposes)
       'phones' => phones,
       'addresses' => addresses,
       'emails' => emails,
@@ -160,11 +240,13 @@ class Macabee::Contact
         'label' => data[:label],
         'phone' => data[:value]
       }
-    end
+    end #.sort_by {|x| [x['label'], x['phone']].join(' ')}
   end
 
   def addresses
-    person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}.stringify_keys}
+    person.addresses.get.map {|a| a.properties_.get}.map do |data|
+      data.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}.stringify_keys
+    end
   end
 
   def emails
@@ -173,11 +255,11 @@ class Macabee::Contact
         'label' => data[:label],
         'email' => data[:value]
       }
-    end.sort_by {|x| [x['label'], x['email']].join(' ')}
+    end #.sort_by {|x| [x['label'], x['email']].join(' ')}
   end
 
   def links
-    (urls + social_profiles + im_handles).sort_by {|x| [x['label'], x['service'], x['handle'], x['url']].join(' ')}
+    (urls + social_profiles + im_handles) #.sort_by {|x| [x['label'], x['service'], x['handle'], x['url']].join(' ')}
   end
 
   def urls
@@ -210,4 +292,40 @@ class Macabee::Contact
       end
     end.flatten
   end
+
+  def linktype(hash)
+    if hash['handle'] && hash['service']
+      "#{hash['service']}_handle"
+    elsif hash['service']
+      'social_profile'
+    else
+      'url'
+    end
+  end
+
+  def delete_link(hash)
+    case meth = linktype(hash)
+    when /handle/
+      handles = person.send("#{meth}s").get.to_a
+      this_index = handles.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['handle'])}
+
+      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+
+    when /url/
+      urls = person.urls.get.to_a
+      this_index = urls.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['url'])}
+
+      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+
+    when /social_profile/
+      profiles = person.social_profiles.get.to_a
+      this_index = profiles.index {|h| (h.service_name.get == hash['service']) && (h.url.get == hash['url'])}
+
+      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+
+    else
+      raise "Don't know what #{meth} is"
+    end
+  end
+
 end

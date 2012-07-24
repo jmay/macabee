@@ -9,7 +9,7 @@ if File.exists?(arg)
   # look in file for a JSON representation and compare it to version in the AB
   filename = arg
   hash = JSON.parse(File.read(filename))
-  abid = hash['xref']['ab']['id_']
+  abid = hash['xref']['ab']
   ab = Macabee::Contacts.new
   contact = ab.fetch(abid)
   diffs = contact.compare(hash)
@@ -17,7 +17,7 @@ if File.exists?(arg)
     puts JSON.pretty_generate(diffs)
     contact.patch(diffs)
   else
-    puts "No changes to appy"
+    puts "No changes to apply"
   end
 else
   # just pull this id from the AB and dump it out
