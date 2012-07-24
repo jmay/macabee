@@ -13,7 +13,11 @@ class Macabee::Contact
     'name.last' => :last_name,
     'name.suffix' => :suffix,
 
-    'other.job_title' => :job_title,
+    'business.job_title' => :job_title,
+    'business.organization' => :organization,
+    'business.company' => :company,
+
+    'other.note' => :note,
 
     'address[]' => 'address[].label',
     'address[].street' => 'address[].street',
@@ -98,13 +102,13 @@ class Macabee::Contact
       end
     end
     puts "person.save"
-    person.save
+    # person.save
   end
 
   # transform an individual contact to our standard structure
   def transform
+    base_properties = person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)}
     raw = {
-      :properties => person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)},
       :addresses => person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
       :emails => person.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
       :phones => person.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
@@ -122,36 +126,86 @@ class Macabee::Contact
     end
     c = tweaked
 
-    props = c['properties']
-
-    abxref = props.select {|k,v| k == 'id_'}
+    # abxref = base_properties.select {|k,v| k == id_'}
     # don't trust creation_date or modification_date; these are local to the machine
 
     names = {
       # 'full' => props['name'], # full name field is generated on MacOSX from first+middle+last+suffix
-      'first' => props['first_name'],
-      'middle' => props['middle_name'],
-      'last' => props['last_name'],
-      'suffix' => props['suffix']
+      'first' => base_properties[:first_name],
+      'middle' => base_properties[:middle_name],
+      'last' => base_properties[:last_name],
+      'suffix' => base_properties[:suffix]
     }.reject {|k,v| v.nil?}
 
-    other = props.select {|k,v| ['company', 'note', 'birth_date', 'job_title', 'organization'].include?(k)}.select {|k,v| v}
-    phones = c['phones'].each_with_object({}) {|h,x| x[h['label']] = { 'phone' => h['value'] }}
-    emails = c['emails'].each_with_object({}) {|h,x| x[h['label']] = { 'email' => h['value'] }}
+    business = base_properties.select {|k,v| [:company, :job_title, :organization].include?(k)}.select {|k,v| v}.stringify_keys
+    other = base_properties.select {|k,v| [:note, :birth_date].include?(k)}.select {|k,v| v}.stringify_keys
 
-    phone_mappings = {'value' => 'phone'}
-      
+    # phones = c['phones'].each_with_object({}) {|h,x| x[h['label']] = { 'phone' => h['value'] }}
+    # emails = c['emails'].each_with_object({}) {|h,x| x[h['label']] = { 'email' => h['value'] }}
+
     {
       'name' => names,
+      'business' => business,
       'other' => other,
       'xref' => {
-        'ab' => abxref
+        'ab' => base_properties[:id_]
       },
       'phones' => phones,
       'addresses' => unroll(c['addresses'], 'label'),
       'emails' => emails,
-      'links' => unroll(c['urls'], 'label').merge(unroll(c['social_profiles'], 'service_name'))
+      'links' => urls + social_profiles + im_handles
     }.reject {|k,v| v.nil? || v.empty?}
+  end
+
+  def phones
+    person.phones.get.map {|e| e.properties_.get}.map do |data|
+      {
+        'label' => data[:label],
+        'phone' => data[:value]
+      }
+    end
+  end
+
+  def emails
+    person.emails.get.map {|e| e.properties_.get}.map do |data|
+      {
+        'label' => data[:label],
+        'email' => data[:value]
+      }
+    end
+  end
+
+  def urls
+    person.urls.get.map{|u| u.properties_.get}.map do |url|
+      {
+        'label' => url[:label],
+        'url' => url[:value]
+      }
+      # a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+    end
+  end
+
+  def social_profiles
+    person.social_profiles.get.map{|u| u.properties_.get}.map do |profile|
+      {
+        'service' => profile[:service_name],
+        'handle' => profile[:user_name],
+        'url' => profile[:url]
+      }.reject {|k,v| v.nil? || v.empty?}
+    end
+    # .get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
+  end
+
+  def im_handles
+    %w{AIM ICQ Jabber MSN Yahoo}.map do |service|
+      person.send("#{service}_handles").properties_.get.map do |data|
+        {
+          'service' => service,
+          'label' => data[:label],
+          'handle' => data[:value]
+        }.reject {|k,v| v.nil? || v.empty?}
+      end
+    end.flatten
   end
 
   private
