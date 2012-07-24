@@ -140,9 +140,6 @@ class Macabee::Contact
     business = base_properties.select {|k,v| [:company, :job_title, :organization].include?(k)}.select {|k,v| v}.stringify_keys
     other = base_properties.select {|k,v| [:note, :birth_date].include?(k)}.select {|k,v| v}.stringify_keys
 
-    # phones = c['phones'].each_with_object({}) {|h,x| x[h['label']] = { 'phone' => h['value'] }}
-    # emails = c['emails'].each_with_object({}) {|h,x| x[h['label']] = { 'email' => h['value'] }}
-
     {
       'name' => names,
       'business' => business,
@@ -151,9 +148,9 @@ class Macabee::Contact
         'ab' => base_properties[:id_]
       },
       'phones' => phones,
-      'addresses' => unroll(c['addresses'], 'label'),
+      'addresses' => addresses,
       'emails' => emails,
-      'links' => urls + social_profiles + im_handles
+      'links' => links
     }.reject {|k,v| v.nil? || v.empty?}
   end
 
@@ -166,13 +163,21 @@ class Macabee::Contact
     end
   end
 
+  def addresses
+    person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}.stringify_keys}
+  end
+
   def emails
     person.emails.get.map {|e| e.properties_.get}.map do |data|
       {
         'label' => data[:label],
         'email' => data[:value]
       }
-    end
+    end.sort_by {|x| [x['label'], x['email']].join(' ')}
+  end
+
+  def links
+    (urls + social_profiles + im_handles).sort_by {|x| [x['label'], x['service'], x['handle'], x['url']].join(' ')}
   end
 
   def urls
@@ -181,7 +186,6 @@ class Macabee::Contact
         'label' => url[:label],
         'url' => url[:value]
       }
-      # a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
     end
   end
 
@@ -191,9 +195,8 @@ class Macabee::Contact
         'service' => profile[:service_name],
         'handle' => profile[:user_name],
         'url' => profile[:url]
-      }.reject {|k,v| v.nil? || v.empty?}
+      }.reject {|k,v| v.blank? || v == :missing_value}
     end
-    # .get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
   end
 
   def im_handles
@@ -203,21 +206,8 @@ class Macabee::Contact
           'service' => service,
           'label' => data[:label],
           'handle' => data[:value]
-        }.reject {|k,v| v.nil? || v.empty?}
+        }.reject {|k,v| v.blank? || v == :missing_value}
       end
     end.flatten
-  end
-
-  private
-
-  def unroll(ary, field)
-    ary.each_with_object({}) do |hash, memo|
-      memo[hash[field]] = hash.reject {|k,v| k == field}
-    end
-  end
-
-  def reroll(hash, fieldname)
-    k,v = hash.first
-    v.merge(fieldname => k)
   end
 end
