@@ -10,8 +10,15 @@ class Macabee::Contacts
     @ab = Appscript.app("Address Book")
   end
 
+  def ref(ab_id)
+    begin
+      @ab.people.ID(ab_id).get
+    rescue Appscript::CommandError
+      nil
+    end
+  end
   def fetch(ab_id)
-    (rec = @ab.people.ID(ab_id)) && Macabee::Contact.new(rec)
+    (rec = ref(ab_id)) && Macabee::Contact.new(rec)
   end
 
   def all

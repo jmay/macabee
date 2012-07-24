@@ -3,12 +3,31 @@
 require "macabee"
 require "json"
 
-abid = ARGV.first
+arg = ARGV.first
 
-ab = Macabee::Contacts.new
-contact = ab.fetch(abid)
-if contact
-  puts JSON.pretty_generate(contact.to_hash)
+if File.exists?(arg)
+  # look in file for a JSON representation and compare it to version in the AB
+  filename = arg
+  hash = JSON.parse(File.read(filename))
+  abid = hash['xref']['ab']['id_']
+  ab = Macabee::Contacts.new
+  contact = ab.fetch(abid)
+  diffs = contact.compare(hash)
+  if diffs.any?
+    puts JSON.pretty_generate(diffs)
+    contact.patch(diffs)
+  else
+    puts "No changes to appy"
+  end
 else
-  $stderr.puts "No such contact #{abid}"
+  # just pull this id from the AB and dump it out
+  abid = arg
+
+  ab = Macabee::Contacts.new
+  contact = ab.fetch(abid)
+  if contact
+    puts JSON.pretty_generate(contact.to_hash)
+  else
+    $stderr.puts "No such contact #{abid}"
+  end
 end
