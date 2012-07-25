@@ -22,6 +22,6 @@ class Macabee::Contacts
   end
 
   def all
-    @contacts ||= @ab.people.get.map {|abperson| Macabee::Contact(abperson)}
+    @contacts ||= @ab.people.get.map {|abperson| Macabee::Contact.new(abperson)}
   end
 end

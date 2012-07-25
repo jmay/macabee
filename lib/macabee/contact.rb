@@ -52,14 +52,14 @@ class Macabee::Contact
     # HashDiff.diff(transformed, target_hash)
 
     %w(name business other phones emails links).each_with_object({}) do |k,diffs|
-      diffs[k] = case transformed[k]
+      diffs[k] = case transformed[k] || []
       when Hash
         HashDiff.diff(transformed[k], target_hash[k])
         # transformed[k].diff(target_hash[k])
       when Array
-        Macabee::Util.hasharraydiff(transformed[k], target_hash[k])
+        Macabee::Util.hasharraydiff(transformed[k] || [], target_hash[k])
       else
-        raise "can't deal with #{k} in #{transformed}"
+        raise "can't deal with #{k} in #{transformed.inspect}"
       end
     end
   end
@@ -78,13 +78,15 @@ class Macabee::Contact
           case action
           when '~' # replace
             puts "person.#{abfield}.set('#{v2}')"
-            # person.send(abfield).set(v2)
+            person.send(abfield).set(v2)
 
           when '+' # add
             puts "person.#{abfield}.set('#{v1}')"
+            person.send(abfield).set(v1)
 
           when '-' # delete
             puts "person.#{abfield}.delete"
+            person.send(abfield).delete
 
           else
             raise "unknown action [#{diff}] for #{k}"
@@ -97,9 +99,12 @@ class Macabee::Contact
         when 'phones', 'emails'
           diff[:deletes].each do |index|
             puts "person.send(#{k}).get[#{index}].delete"
+            person.send(k).get[index].delete
           end
           diff[:adds].each do |hash|
-            puts "ab.make(:new => :#{abfield}, :at => #{self}, :with_properties => #{hash.inspect}"
+            data = self.send("to_#{abfield}", hash)
+            puts "ab.make(:new => :#{abfield}, :at => #{self.person}, :with_properties => #{data.inspect}"
+            person.make(:new => abfield.to_sym, :at => person, :with_properties => data)
           end
 
         when 'links'
@@ -110,7 +115,9 @@ class Macabee::Contact
           end
           diff[:adds].each do |hash|
             meth = linktype(hash)
-            puts "ab.make(:new => :#{meth}, :at => #{self}, :with_properties => #{hash.inspect}"
+            data = self.send("to_#{meth}", hash)
+            puts "ab.make(:new => :#{meth}, :at => #{self}, :with_properties => #{data.inspect}"
+            person.make(:new => meth.to_sym, :at => person, :with_properties => data)
           end
 
           # if diff[:deletes].any? || diff[:adds].any?
@@ -127,6 +134,7 @@ class Macabee::Contact
 
     end
     puts "person.save"
+    person.save
 
       # diff.each do |action,field,v1,v2|
       #   abfield = @@mappings[field] || "#{field}-UNMAPPED"
@@ -294,7 +302,7 @@ class Macabee::Contact
   end
 
   def linktype(hash)
-    if hash['handle'] && hash['service']
+    if hash['handle'] && hash['service'] && !hash['url']
       "#{hash['service']}_handle"
     elsif hash['service']
       'social_profile'
@@ -304,28 +312,61 @@ class Macabee::Contact
   end
 
   def delete_link(hash)
-    case meth = linktype(hash)
+    meth = linktype(hash)
+    puts "Using #{meth} for #{hash.inspect}"
+    case meth
     when /handle/
       handles = person.send("#{meth}s").get.to_a
       this_index = handles.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['handle'])}
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+      puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
+      person.send("#{meth}s").get[this_index].delete
 
     when /url/
       urls = person.urls.get.to_a
       this_index = urls.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['url'])}
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+      puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
+      person.urls.get[this_index].delete
 
     when /social_profile/
       profiles = person.social_profiles.get.to_a
       this_index = profiles.index {|h| (h.service_name.get == hash['service']) && (h.url.get == hash['url'])}
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete"
+      puts "person.send(:#{meth}s).get[#{this_index}].delete #{profiles[this_index].properties_.get}"
+      # profiles[this_index].delete
 
     else
       raise "Don't know what #{meth} is"
     end
   end
 
+  def to_phone(hash)
+    {
+      :label => hash['label'],
+      :value => hash['phone']
+    }
+  end
+
+  def to_email(hash)
+    {
+      :label => hash['label'],
+      :value => hash['email']
+    }
+  end
+
+  def to_url(hash)
+    {
+      :label => hash['label'],
+      :value => hash['url']
+    }
+  end
+
+  def to_social_profile(hash)
+    {
+      :service_name => hash['service'],
+      :user_name => hash['handle'],
+      :url => hash['url']
+    }.reject {|k,v| v.nil?}
+  end
 end

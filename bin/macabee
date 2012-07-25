@@ -5,7 +5,12 @@ require "json"
 
 arg = ARGV.first
 
-if File.exists?(arg)
+if arg.nil?
+  # dump entire AB
+  ab = Macabee::Contacts.new
+  puts JSON.pretty_generate(ab.all.map(&:to_hash))
+
+elsif File.exists?(arg)
   # look in file for a JSON representation and compare it to version in the AB
   filename = arg
   hash = JSON.parse(File.read(filename))
@@ -19,6 +24,7 @@ if File.exists?(arg)
   else
     puts "No changes to apply"
   end
+
 else
   # just pull this id from the AB and dump it out
   abid = arg
