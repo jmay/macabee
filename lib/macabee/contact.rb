@@ -193,23 +193,23 @@ class Macabee::Contact
   # transform an individual contact to our standard structure
   def transform
     base_properties = person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)}
-    raw = {
-      :addresses => person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
-      :emails => person.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :phones => person.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :urls => person.urls.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-      :social_profiles => person.social_profiles.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
-    }
-    tweaked = {}
-    raw.each do |k,v|
-      case v
-      when Array
-        tweaked[k.to_s] = v.map {|h| h.stringify_keys}
-      else
-        tweaked[k.to_s] = v.stringify_keys
-      end
-    end
-    c = tweaked
+    # raw = {
+    #   :addresses => person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
+    #   :emails => person.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+    #   :phones => person.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+    #   :urls => person.urls.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
+    #   :social_profiles => person.social_profiles.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
+    # }
+    # tweaked = {}
+    # raw.each do |k,v|
+    #   case v
+    #   when Array
+    #     tweaked[k.to_s] = v.map {|h| h.stringify_keys}
+    #   else
+    #     tweaked[k.to_s] = v.stringify_keys
+    #   end
+    # end
+    # c = tweaked
 
     # abxref = base_properties.select {|k,v| k == id_'}
     # don't trust creation_date or modification_date; these are local to the machine
@@ -330,11 +330,21 @@ class Macabee::Contact
       person.urls.get[this_index].delete
 
     when /social_profile/
-      profiles = person.social_profiles.get.to_a
-      this_index = profiles.index {|h| (h.service_name.get == hash['service']) && (h.url.get == hash['url'])}
+      this_index = social_profiles.index {|h| h == hash}
+      # profiles = person.social_profiles.get.to_a
+      # this_index = profiles.index {|h| (h.service_name.get == hash['service']) && (h.url.get == (hash['url'] || :missing_value)) && (h.user_name.get == (hash['handle'] || :missing_value))}
+      raise "Cannot find profile to delete for #{hash}" if this_index.nil?
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete #{profiles[this_index].properties_.get}"
-      # profiles[this_index].delete
+      puts "person.social_profiles.get[#{this_index}].delete #{hash}"
+
+      # some sort of bug with deleting social profiles
+      # http://macscripter.net/viewtopic.php?id=38956&p=2
+      # can't do this: person.social_profiles.get[this_index].delete
+      # the following workaround appears to result in the profile entry being removed:
+      profile = person.social_profiles.get[this_index]
+      profile.user_name.delete
+      profile.url.delete
+      profile.save
 
     else
       raise "Don't know what #{meth} is"
