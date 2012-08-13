@@ -103,7 +103,7 @@ class Macabee::Contact
           end
           diff[:adds].each do |hash|
             data = self.send("to_#{abfield}", hash)
-            puts "ab.make(:new => :#{abfield}, :at => #{self.person}, :with_properties => #{data.inspect}"
+            puts "ab.make(:new => :#{abfield}, :at => #{person}, :with_properties => #{data.inspect}"
             person.make(:new => abfield.to_sym, :at => person, :with_properties => data)
           end
 
@@ -116,7 +116,7 @@ class Macabee::Contact
           diff[:adds].each do |hash|
             meth = linktype(hash)
             data = self.send("to_#{meth}", hash)
-            puts "ab.make(:new => :#{meth}, :at => #{self}, :with_properties => #{data.inspect}"
+            puts "ab.make(:new => :#{meth}, :at => #{person}, :with_properties => #{data.inspect}"
             person.make(:new => meth.to_sym, :at => person, :with_properties => data)
           end
 

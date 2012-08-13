@@ -8,7 +8,7 @@ arg = ARGV.first
 if arg.nil?
   # dump entire AB
   ab = Macabee::Contacts.new
-  puts JSON.pretty_generate(ab.all.map(&:to_hash))
+  puts JSON.pretty_generate(ab.to_hash)
 
 elsif File.exists?(arg)
   # look in file for a JSON representation and compare it to version in the AB
@@ -30,10 +30,10 @@ else
   abid = arg
 
   ab = Macabee::Contacts.new
-  contact = ab.fetch(abid)
-  if contact
-    puts JSON.pretty_generate(contact.to_hash)
+  rec = ab.fetch(abid) # could be Person or Group
+  if rec
+    puts JSON.pretty_generate(rec.to_hash)
   else
-    $stderr.puts "No such contact #{abid}"
+    $stderr.puts "No such record #{abid}"
   end
 end

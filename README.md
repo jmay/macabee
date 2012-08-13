@@ -1,6 +1,6 @@
 # Macabee
 
-TODO: Write a gem description
+Extract contacts records from OSX Address Book as JSON. Apply updates to individual Address Book records via JSON.
 
 ## Installation
 
@@ -18,7 +18,17 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Dump entire Address Book as JSON to standard output:
+
+    $ macabee
+
+Dump out a single contact as JSON, where the `address-book-id` is the internal identifier, in the form "583BF34F-AD95-45FB-8521-05CB85C13079:ABPerson".
+
+    $ macabee {address-book-id}
+
+Compare a JSON input to the matching contact record in Address Book, and apply any changes to the Address Book record.
+
+    $ macabee inputfile.json
 
 ## Contributing
 
