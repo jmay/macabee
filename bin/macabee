@@ -37,3 +37,11 @@ else
     $stderr.puts "No such record #{abid}"
   end
 end
+
+
+# possible alternative usage:
+#
+# macabee dump
+# macabee dump contact XXX # XXX could be internal ID or a string that should match exactly one record
+# macabee dump group XXX
+# macabee update file

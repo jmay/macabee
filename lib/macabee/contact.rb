@@ -290,7 +290,7 @@ class Macabee::Contact
   end
 
   def im_handles
-    %w{AIM ICQ Jabber MSN Yahoo}.map do |service|
+    handles1 = %w{AIM ICQ Jabber MSN Yahoo}.map do |service|
       person.send("#{service}_handles").properties_.get.map do |data|
         {
           'service' => service,
@@ -299,7 +299,19 @@ class Macabee::Contact
         }.reject {|k,v| v.blank? || v == :missing_value}
       end
     end.flatten
+
+    ims = person.instant_messages
+    handles2 = ims.count.times.map do |i|
+      {
+        'label' => ims.label.get[i].gsub(/[^A-Za-z]/, '').downcase,
+        'service' => ims.service_name.get[i],
+        'handle' => ims.user_name.get[i]
+      }.reject {|k,v| v.blank? || v == :missing_value}
+    end
+
+    (handles1 + handles2).uniq
   end
+
 
   def linktype(hash)
     if hash['handle'] && hash['service'] && !hash['url']
