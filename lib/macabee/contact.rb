@@ -170,15 +170,15 @@ class Macabee::Contact
       # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
       # a standardized order for list comparison purposes)
       'phones' => phones,
-      # 'addresses' => addresses,
+      'addresses' => addresses,
       'emails' => emails,
-      # 'links' => links
+      'links' => links
     }.reject {|k,v| v.nil? || v.empty?}
   end
 
   def phones
     multi = person.valueForProperty(KABPhoneProperty)
-    multi.count.times.map do |i|
+    multi && multi.count.times.map do |i|
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
         'phone' => multi.valueAtIndex(i)
@@ -187,14 +187,23 @@ class Macabee::Contact
   end
 
   def addresses
-    person.addresses.get.map {|a| a.properties_.get}.map do |data|
-      data.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}.stringify_keys
+    multi = person.valueForProperty(KABAddressProperty)
+    multi && multi.count.times.map do |i|
+      h = multi.valueAtIndex(i)
+      {
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'street' => h['Street'],
+        'city' => h['City'],
+        'state' => h['State'],
+        'postalcode' => h['ZIP'],
+        'country' => h['Country']
+      }
     end
   end
 
   def emails
     multi = person.valueForProperty(KABEmailProperty)
-    multi.count.times.map do |i|
+    multi && multi.count.times.map do |i|
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
         'email' => multi.valueAtIndex(i)
@@ -203,49 +212,41 @@ class Macabee::Contact
   end
 
   def links
-    (urls + social_profiles + im_handles) #.sort_by {|x| [x['label'], x['service'], x['handle'], x['url']].join(' ')}
+    (urls||[]) + (social_profiles||[]) + (im_handles||[])
   end
 
   def urls
-    person.urls.get.map{|u| u.properties_.get}.map do |url|
+    multi = person.valueForProperty(KABURLsProperty)
+    multi && multi.count.times.map do |i|
       {
-        'label' => url[:label],
-        'url' => url[:value]
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'url' => multi.valueAtIndex(i)
       }
     end
   end
 
   def social_profiles
-    person.social_profiles.get.map{|u| u.properties_.get}.map do |profile|
+    multi = person.valueForProperty(KABSocialProfileProperty)
+    multi && multi.count.times.map do |i|
+      h = multi.valueAtIndex(i)
       {
-        'service' => profile[:service_name],
-        'handle' => profile[:user_name],
-        'url' => profile[:url]
-      }.reject {|k,v| v.blank? || v == :missing_value}
+        'label' => multi.labelAtIndex(i) && ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'service' => h['serviceName'],
+        'url' => h['url']
+      }.reject {|k,v| v.nil? || v.empty? || v == 'None'}
     end
   end
 
   def im_handles
-    handles1 = %w{AIM ICQ Jabber MSN Yahoo}.map do |service|
-      person.send("#{service}_handles").properties_.get.map do |data|
-        {
-          'service' => service,
-          'label' => data[:label],
-          'handle' => data[:value]
-        }.reject {|k,v| v.blank? || v == :missing_value}
-      end
-    end.flatten
-
-    ims = person.instant_messages
-    handles2 = ims.count.times.map do |i|
+    multi = person.valueForProperty(KABInstantMessageProperty)
+    multi && multi.count.times.map do |i|
+      h = multi.valueAtIndex(i)
       {
-        'label' => ims.label.get[i].gsub(/[^A-Za-z]/, '').downcase,
-        'service' => ims.service_name.get[i],
-        'handle' => ims.user_name.get[i]
-      }.reject {|k,v| v.blank? || v == :missing_value}
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'service' => h['InstantMessageService'],
+        'handle' => h['InstantMessageUsername']
+      }.reject {|k,v| v.nil? || v.empty?}
     end
-
-    (handles1 + handles2).uniq
   end
 
 
