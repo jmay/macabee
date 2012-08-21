@@ -1,39 +1,29 @@
 # Macabee::Contacts is ruby representation of Mac Address Book
 
-require "appscript"
-
 class Macabee::Contacts
   attr_reader :ab #, :contacts, :groups
 
   # suck all the contacts from local MacOSX Address Book into a single array
   def initialize
-    @ab = Appscript.app("Address Book")
+    @ab = ABAddressBook.addressBook
   end
 
   def ref(ab_id)
-    begin
-      case ab_id
-      when /ABPerson/
-        @ab.people.ID(ab_id).get
-      when /ABGroup/
-        @ab.groups.ID(ab_id).get
-      else
-        nil
-      end
-    rescue Appscript::CommandError
-      nil
-    end
+    query = ABPerson.searchElementForProperty('com.apple.uuid',
+                    label:nil, key:nil, value: ab_id,
+                    comparison:KABEqual)
+    ab.recordsMatchingSearchElement(query).first
   end
 
   def fetch(ab_id)
     rec = ref(ab_id)
     if rec
-      case ab_id
-      when /ABPerson/
+      # case ab_id
+      # when /ABPerson/
         Macabee::Contact.new(rec)
-      when /ABGroup/
-        Macabee::Group.new(rec)
-      end
+      # when /ABGroup/
+      #   Macabee::Group.new(rec)
+      # end
     end
   end
 

@@ -15,9 +15,10 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
   gem.version       = Macabee::VERSION
 
-  gem.add_dependency 'rb-appscript'
-  gem.add_dependency 'activesupport'
+  # gem.add_dependency 'rb-appscript'
+  # gem.add_dependency 'activesupport'
   gem.add_dependency 'hashdiff'
+  gem.add_dependency 'andand'
 
   gem.add_development_dependency "rake", "~> 0.9.2"
   gem.add_development_dependency "rspec", "~> 2.9.0"

@@ -1,6 +1,7 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-require "active_support/core_ext"
+# require "active_support/core_ext" # something in multi_json breaks with MacRuby (strings come out blank)
+require "andand"
 require "hashdiff"
 
 class Macabee::Contact
@@ -136,109 +137,44 @@ class Macabee::Contact
     puts "person.save"
     person.save
 
-      # diff.each do |action,field,v1,v2|
-      #   abfield = @@mappings[field] || "#{field}-UNMAPPED"
-
-      #   case action
-      #   when '~' # replace
-      #     puts "person.#{abfield}.set('#{v2}')"
-      #     person.send(abfield).set(v2)
-
-      #   when '+' # add
-      #     case v1
-      #     when Hash
-      #       value = case abfield
-      #       when :phone
-      #         {
-      #           :label => v1.keys.first,
-      #           :value => v1.values.first['phone']
-      #         }
-      #       when :email
-      #         {
-      #           :label => v1.keys.first,
-      #           :value => v1.values.first['email']
-      #         }
-      #       else
-      #         raise "unknown field '#{abfield}' updated"
-      #       end
-
-      #       puts "ab.make(:new => #{abfield}, :at => #{self}, :with_properties => #{value.inspect}"
-      #       person.make(:new => abfield, :at => person, :with_properties => value)
-
-      #     else # should be String
-      #       puts "person.#{abfield}.set('#{v1}')"
-      #       person.send(abfield).set(v1)
-      #     end
-
-      #   when '-' # delete
-      #     case abfield
-      #     when :phone, :email
-      #       puts "person.send(#{field}).get.select {|x| x.label.get == #{v1.keys.first}}.first.delete"
-      #       rec = person.send(field).get.select {|x| x.label.get == v1.keys.first}.first
-      #       rec.delete
-      #     else
-      #       puts "person.#{abfield}.delete"
-      #       person.send(abfield).delete
-      #     end
-
-      #   else
-      #     raise "unknown action '#{action}'"
-      #   end
-      # end
-      # puts "person.save"
-      # # person.save
-    # end
   end
 
   # transform an individual contact to our standard structure
   def transform
-    base_properties = person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)}
-    # raw = {
-    #   :addresses => person.addresses.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_, :formatted_address].include?(k)}},
-    #   :emails => person.emails.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-    #   :phones => person.phones.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-    #   :urls => person.urls.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}},
-    #   :social_profiles => person.social_profiles.get.map {|a| a.properties_.get.select {|k,v| v != :missing_value && ![:class_, :id_].include?(k)}}
-    # }
-    # tweaked = {}
-    # raw.each do |k,v|
-    #   case v
-    #   when Array
-    #     tweaked[k.to_s] = v.map {|h| h.stringify_keys}
-    #   else
-    #     tweaked[k.to_s] = v.stringify_keys
-    #   end
-    # end
-    # c = tweaked
-
-    # abxref = base_properties.select {|k,v| k == id_'}
-    # don't trust creation_date or modification_date; these are local to the machine
+    # base_properties = person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)}
 
     names = {
       # 'full' => props['name'], # full name field is generated on MacOSX from first+middle+last+suffix
-      'first' => base_properties[:first_name],
-      'middle' => base_properties[:middle_name],
-      'last' => base_properties[:last_name],
-      'suffix' => base_properties[:suffix]
+      'first' => person.valueForProperty(KABFirstNameProperty),
+      'middle' => person.valueForProperty(KABMiddleNameProperty),
+      'last' => person.valueForProperty(KABLastNameProperty),
+      'suffix' => person.valueForProperty(KABSuffixProperty)
+    }.reject {|k,v| v.nil?}.dup
+
+    business = {
+      'organization' => person.valueForProperty(KABOrganizationProperty),
+      'job_title' => person.valueForProperty(KABTitleProperty)
     }.reject {|k,v| v.nil?}
 
-    business = base_properties.select {|k,v| [:company, :job_title, :organization].include?(k)}.select {|k,v| v}.stringify_keys
-    other = base_properties.select {|k,v| [:note, :birth_date].include?(k)}.select {|k,v| v}.stringify_keys
+    other = {
+      'birth_date' => person.valueForProperty(KABBirthdayProperty),
+      'note' => person.valueForProperty(KABNoteProperty)
+    }.reject {|k,v| v.nil?}
 
     {
       'name' => names,
       'business' => business,
       'other' => other,
       'xref' => {
-        'ab' => base_properties[:id_]
+        'ab' => person.valueForProperty('com.apple.uuid')
       },
 
       # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
       # a standardized order for list comparison purposes)
-      'phones' => phones,
-      'addresses' => addresses,
-      'emails' => emails,
-      'links' => links
+      # 'phones' => phones,
+      # 'addresses' => addresses,
+      # 'emails' => emails,
+      # 'links' => links
     }.reject {|k,v| v.nil? || v.empty?}
   end
 
