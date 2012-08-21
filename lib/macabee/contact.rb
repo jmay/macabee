@@ -141,15 +141,13 @@ class Macabee::Contact
 
   # transform an individual contact to our standard structure
   def transform
-    # base_properties = person.properties_.get.select {|k,v| v != :missing_value && ![:class_, :vcard, :selected, :image].include?(k)}
-
     names = {
-      # 'full' => props['name'], # full name field is generated on MacOSX from first+middle+last+suffix
+      # 'full' => # full name field is generated on MacOSX from first+middle+last+suffix; no API to get it
       'first' => person.valueForProperty(KABFirstNameProperty),
       'middle' => person.valueForProperty(KABMiddleNameProperty),
       'last' => person.valueForProperty(KABLastNameProperty),
       'suffix' => person.valueForProperty(KABSuffixProperty)
-    }.reject {|k,v| v.nil?}.dup
+    }.reject {|k,v| v.nil?}
 
     business = {
       'organization' => person.valueForProperty(KABOrganizationProperty),
@@ -171,20 +169,21 @@ class Macabee::Contact
 
       # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
       # a standardized order for list comparison purposes)
-      # 'phones' => phones,
+      'phones' => phones,
       # 'addresses' => addresses,
-      # 'emails' => emails,
+      'emails' => emails,
       # 'links' => links
     }.reject {|k,v| v.nil? || v.empty?}
   end
 
   def phones
-    person.phones.get.map {|e| e.properties_.get}.map do |data|
+    multi = person.valueForProperty(KABPhoneProperty)
+    multi.count.times.map do |i|
       {
-        'label' => data[:label],
-        'phone' => data[:value]
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'phone' => multi.valueAtIndex(i)
       }
-    end #.sort_by {|x| [x['label'], x['phone']].join(' ')}
+    end
   end
 
   def addresses
@@ -194,12 +193,13 @@ class Macabee::Contact
   end
 
   def emails
-    person.emails.get.map {|e| e.properties_.get}.map do |data|
+    multi = person.valueForProperty(KABEmailProperty)
+    multi.count.times.map do |i|
       {
-        'label' => data[:label],
-        'email' => data[:value]
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'email' => multi.valueAtIndex(i)
       }
-    end #.sort_by {|x| [x['label'], x['email']].join(' ')}
+    end
   end
 
   def links
