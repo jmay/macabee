@@ -174,7 +174,8 @@ class Macabee::Contact
   def business
     {
       'organization' => get(KABOrganizationProperty),
-      'job_title' => get(KABTitleProperty)
+      'job_title' => get(KABTitleProperty),
+      'department' => get(KABDepartmentProperty)
     }.reject {|k,v| v.nil?}
   end
 
