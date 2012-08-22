@@ -42,6 +42,8 @@ class Macabee::Contact
   end
 
   def compare(target_hash)
+    return HashDiff.diff(to_hash, target_hash)
+
     # construct a diff that would transform the current record into the new hash
     # should the inbound data contain the xref stuff? probably, because there might be xrefs from other sources;
     # but the xrefs shouldn't be part of the comparison and shouldn't be stored back to the AB record.

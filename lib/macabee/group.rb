@@ -24,14 +24,17 @@ class Macabee::Group
   # transform an individual group to our standard structure
   def transform
     {
-      'name' => @ab_group.name.get,
-      'contacts' => contacts
+      'name' => ab_group.name,
+      'contacts' => contacts,
+      'xref' => {
+        'ab' => ab_group.valueForProperty('com.apple.uuid')
+      },
     }
   end
 
   def contacts
-    @ab_group.people.get.map do |p|
-      p.id_.get
+    ab_group.members.map do |p|
+      p.valueForProperty('com.apple.uuid')
     end
   end
 end

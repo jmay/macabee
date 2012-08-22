@@ -1,48 +1,47 @@
 #!/usr/bin/env ruby
 
-require "macabee"
+require 'rubygems'
+require 'macabee'
 require "json"
 
-arg = ARGV.first
+ab = Macabee::Contacts.new
 
-if arg.nil?
-  # dump entire AB
-  ab = Macabee::Contacts.new
+command, arg = ARGV
+
+case command
+when 'dump'
   puts JSON.pretty_generate(ab.to_hash)
 
-elsif File.exists?(arg)
+when 'groups'
+  puts JSON.pretty_generate(ab.groups.map(&:to_hash))
+
+when 'contact'
+  if contact = ab.contact(arg)
+    puts JSON.pretty_generate(contact.to_hash)
+  else
+    raise "No such person in Address Book '#{arg}'"
+  end
+
+when 'group'
+  if group = ab.group(arg)
+    puts JSON.pretty_generate(group.to_hash)
+  else
+    raise "No such group in Address Book '#{arg}'"
+  end
+
+when 'update'
   # look in file for a JSON representation and compare it to version in the AB
-  filename = arg
-  hash = JSON.parse(File.read(filename))
+  hash = JSON.load(File.open(arg))
   abid = hash['xref']['ab']
-  ab = Macabee::Contacts.new
-  contact = ab.fetch(abid)
+  contact = ab.contact(abid)
   diffs = contact.compare(hash)
   if diffs.any?
     puts JSON.pretty_generate(diffs)
-    contact.patch(diffs)
+    # contact.patch(diffs)
   else
     puts "No changes to apply"
   end
 
 else
-  # just pull this id from the AB and dump it out
-  abid = arg
-
-  ab = Macabee::Contacts.new
-  rec = ab.fetch(abid) # could be Person or Group
-  if rec
-    puts JSON.pretty_generate(rec.to_hash)
-    # puts rec.to_hash.dup.to_json
-  else
-    $stderr.puts "No such record #{abid}"
-  end
+  raise "Unknown command '#{command}'"
 end
-
-
-# possible alternative usage:
-#
-# macabee dump
-# macabee dump contact XXX # XXX could be internal ID or a string that should match exactly one record
-# macabee dump group XXX
-# macabee update file

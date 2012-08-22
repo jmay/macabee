@@ -37,3 +37,9 @@ Compare a JSON input to the matching contact record in Address Book, and apply a
 3. Commit your changes (`git commit -am 'Added some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+https://jmay%40pobox.com@p08-contacts.icloud.com/16422197/carddavhome/card/
+
+## TODO
+
+* extract groups
