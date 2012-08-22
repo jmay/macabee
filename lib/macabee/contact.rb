@@ -1,7 +1,5 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-# require "active_support/core_ext" # something in multi_json breaks with MacRuby (strings come out blank)
-require "andand"
 require "hashdiff"
 
 class Macabee::Contact
@@ -143,30 +141,13 @@ class Macabee::Contact
 
   # transform an individual contact to our standard structure
   def transform
-    names = {
-      # 'full' => # full name field is generated on MacOSX from first+middle+last+suffix; no API to get it
-      'first' => person.valueForProperty(KABFirstNameProperty),
-      'middle' => person.valueForProperty(KABMiddleNameProperty),
-      'last' => person.valueForProperty(KABLastNameProperty),
-      'suffix' => person.valueForProperty(KABSuffixProperty)
-    }.reject {|k,v| v.nil?}
-
-    business = {
-      'organization' => person.valueForProperty(KABOrganizationProperty),
-      'job_title' => person.valueForProperty(KABTitleProperty)
-    }.reject {|k,v| v.nil?}
-
-    other = {
-      'birth_date' => person.valueForProperty(KABBirthdayProperty),
-      'note' => person.valueForProperty(KABNoteProperty)
-    }.reject {|k,v| v.nil?}
-
     {
       'name' => names,
       'business' => business,
-      'other' => other,
+      'other' => other_data,
+      'associates' => associates,
       'xref' => {
-        'ab' => person.valueForProperty('com.apple.uuid')
+        'ab' => get('com.apple.uuid')
       },
 
       # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
@@ -178,8 +159,44 @@ class Macabee::Contact
     }.reject {|k,v| v.nil? || v.empty?}
   end
 
+  def names
+    {
+      # 'full' => # full name field is generated on MacOSX from first+middle+last+suffix; no API to get it
+      'first' => get(KABFirstNameProperty),
+      'middle' => get(KABMiddleNameProperty),
+      'last' => get(KABLastNameProperty),
+      'title' => get(KABTitleProperty),
+      'suffix' => get(KABSuffixProperty),
+      'nick' => get(KABNicknameProperty)
+    }.reject {|k,v| v.nil?}
+  end
+
+  def business
+    {
+      'organization' => get(KABOrganizationProperty),
+      'job_title' => get(KABTitleProperty)
+    }.reject {|k,v| v.nil?}
+  end
+
+  def other_data
+    {
+      'birth_date' => get(KABBirthdayProperty),
+      'note' => get(KABNoteProperty)
+    }.reject {|k,v| v.nil?}
+  end
+
+  def associates
+    multi = get(KABRelatedNamesProperty)
+    multi && multi.count.times.map do |i|
+      {
+        'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
+        'name' => multi.valueAtIndex(i)
+      }
+    end
+  end
+
   def phones
-    multi = person.valueForProperty(KABPhoneProperty)
+    multi = get(KABPhoneProperty)
     multi && multi.count.times.map do |i|
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
@@ -189,7 +206,7 @@ class Macabee::Contact
   end
 
   def addresses
-    multi = person.valueForProperty(KABAddressProperty)
+    multi = get(KABAddressProperty)
     multi && multi.count.times.map do |i|
       h = multi.valueAtIndex(i)
       {
@@ -204,7 +221,7 @@ class Macabee::Contact
   end
 
   def emails
-    multi = person.valueForProperty(KABEmailProperty)
+    multi = get(KABEmailProperty)
     multi && multi.count.times.map do |i|
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
@@ -218,7 +235,7 @@ class Macabee::Contact
   end
 
   def urls
-    multi = person.valueForProperty(KABURLsProperty)
+    multi = get(KABURLsProperty)
     multi && multi.count.times.map do |i|
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
@@ -228,7 +245,7 @@ class Macabee::Contact
   end
 
   def social_profiles
-    multi = person.valueForProperty(KABSocialProfileProperty)
+    multi = get(KABSocialProfileProperty)
     multi && multi.count.times.map do |i|
       h = multi.valueAtIndex(i)
       {
@@ -240,7 +257,7 @@ class Macabee::Contact
   end
 
   def im_handles
-    multi = person.valueForProperty(KABInstantMessageProperty)
+    multi = get(KABInstantMessageProperty)
     multi && multi.count.times.map do |i|
       h = multi.valueAtIndex(i)
       {
@@ -329,5 +346,11 @@ class Macabee::Contact
       :user_name => hash['handle'],
       :url => hash['url']
     }.reject {|k,v| v.nil?}
+  end
+
+  private
+
+  def get(property)
+    person.valueForProperty(property)
   end
 end

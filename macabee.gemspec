@@ -16,7 +16,6 @@ Gem::Specification.new do |gem|
   gem.version       = Macabee::VERSION
 
   gem.add_dependency 'hashdiff'
-  gem.add_dependency 'andand'
 
   gem.add_development_dependency "rake", "~> 0.9.2"
   gem.add_development_dependency "rspec", "~> 2.9.0"
