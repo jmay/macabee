@@ -15,6 +15,9 @@ when 'dump'
 when 'groups'
   puts JSON.pretty_generate(ab.groups.map(&:to_hash))
 
+when 'contacts'
+  puts JSON.pretty_generate(ab.contacts.map(&:to_hash))
+
 when 'contact'
   if contact = ab.contact(arg)
     puts JSON.pretty_generate(contact.to_hash)

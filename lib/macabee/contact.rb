@@ -199,7 +199,7 @@ class Macabee::Contact
         'state' => h['State'],
         'postalcode' => h['ZIP'],
         'country' => h['Country']
-      }
+      }.reject {|k,v| v.nil? || v.empty?}
     end
   end
 
@@ -247,7 +247,7 @@ class Macabee::Contact
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
         'service' => h['InstantMessageService'],
         'handle' => h['InstantMessageUsername']
-      }.reject {|k,v| v.nil? || v.empty?}
+      }.reject {|k,v| v.nil? || v.empty? || v == 'None'}
     end
   end
 
