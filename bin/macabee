@@ -6,7 +6,8 @@ require "json"
 
 ab = Macabee::Contacts.new
 
-command, arg = ARGV
+command, *args = ARGV
+arg = args.first
 
 case command
 when 'dump'
@@ -20,6 +21,14 @@ when 'contacts'
 
 when 'contact'
   if contact = ab.contact(arg)
+    puts JSON.pretty_generate(contact.to_hash)
+  else
+    raise "No such person in Address Book '#{arg}'"
+  end
+
+when 'lookup'
+  firstname, lastname = args
+  if contact = ab.lookup(firstname, lastname)
     puts JSON.pretty_generate(contact.to_hash)
   else
     raise "No such person in Address Book '#{arg}'"

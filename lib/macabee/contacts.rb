@@ -17,6 +17,19 @@ class Macabee::Contacts
     end
   end
 
+  def lookup(firstname, lastname)
+    q1 = ABPerson.searchElementForProperty(KABFirstNameProperty,
+                    label:nil, key:nil, value: firstname,
+                    comparison:KABEqual)
+    q2 = ABPerson.searchElementForProperty(KABLastNameProperty,
+                    label:nil, key:nil, value: lastname,
+                    comparison:KABEqual)
+    query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2])
+    if rec = ab.recordsMatchingSearchElement(query).first
+      Macabee::Contact.new(rec)
+    end
+  end
+
   def group(ab_id)
     query = ABGroup.searchElementForProperty('com.apple.uuid',
                     label:nil, key:nil, value: ab_id,
