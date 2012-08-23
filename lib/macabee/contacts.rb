@@ -53,4 +53,20 @@ class Macabee::Contacts
       'groups' => groups.map(&:to_hash)
     }
   end
+
+  def diff(hash)
+    abid = hash['xref']['ab']
+    contact = contact(abid)
+    if contact.nil?
+      contact = lookup(hash['name']['first'], hash['name']['last'])
+      # $stderr.puts "Address Book UUID has changed to #{contact.uuid}"
+      # hash['xref']['ab'] = contact.uuid
+    end
+    if contact.nil?
+      raise "Unable to find matching contact record."
+    end
+    contact.compare(hash)
+
+  end
+
 end

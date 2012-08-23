@@ -5,6 +5,7 @@ require "hashdiff"
 class Macabee::Contact
   attr_reader :person
 
+  ContactKeys = %w(name business other associates xref phones addresses emails links)
 
   @@mappings = {
     'name.first' => :first_name,
@@ -39,8 +40,45 @@ class Macabee::Contact
     transformed
   end
 
+  def self.compare(h1, h2)
+    diffs = []
+    ContactKeys.each do |k|
+      if h1[k] && h2[k] && (h1[k].class != h2[k].class)
+        raise "Incompatible object classes: #{h1[k].class} vs #{h2[k].class}"
+      end
+
+      if h1[k] || h2[k] # only compare keys that are defined in one or the other of the inputs
+        diff = case h1[k] || h2[k]
+        when Hash
+          HashDiff.diff(h1[k] || {}, h2[k] || {})
+        when Array
+          Macabee::Util.hasharraydiff(h1[k] || [], h2[k] || [])
+        else
+          raise "can't deal with #{h1[k].class} for #{k} in #{h1.inspect}"
+        end
+
+        diffs << diff if diff.any?
+      end
+
+
+      # diffs[k] = case transformed[k] || []
+      # when Hash
+      #   HashDiff.diff(transformed[k], target_hash[k])
+      #   # transformed[k].diff(target_hash[k])
+      # when Array
+        
+      # else
+      #   raise "can't deal with #{k} in #{transformed.inspect}"
+      # end
+    end
+
+    diffs
+  end
+
   def compare(target_hash)
-    return HashDiff.diff(to_hash, target_hash)
+    Macabee::Contact.compare(to_hash, target_hash)
+
+    # return HashDiff.diff(to_hash, target_hash)
 
     # construct a diff that would transform the current record into the new hash
     # should the inbound data contain the xref stuff? probably, because there might be xrefs from other sources;
@@ -52,17 +90,20 @@ class Macabee::Contact
 
     # HashDiff.diff(transformed, target_hash)
 
-    %w(name business other phones emails links).each_with_object({}) do |k,diffs|
-      diffs[k] = case transformed[k] || []
-      when Hash
-        HashDiff.diff(transformed[k], target_hash[k])
-        # transformed[k].diff(target_hash[k])
-      when Array
-        Macabee::Util.hasharraydiff(transformed[k] || [], target_hash[k])
-      else
-        raise "can't deal with #{k} in #{transformed.inspect}"
-      end
-    end
+    # diffs = []
+    # ContactKeys.each do |k|
+    #   diffs[k] = case h1[k]
+    #   when Hash
+    #     HashDiff.diff(transformed[k], target_hash[k])
+    #     # transformed[k].diff(target_hash[k])
+    #   when Array
+    #     Macabee::Util.hasharraydiff(transformed[k] || [], target_hash[k])
+    #   else
+    #     raise "can't deal with #{k} in #{transformed.inspect}"
+    #   end
+    # end
+
+    # diffs
   end
 
   def patch(diffs)

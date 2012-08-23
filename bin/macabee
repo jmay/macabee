@@ -43,24 +43,27 @@ when 'group'
 
 when 'compare'
   # look in file for a JSON representation and compare it to version in the AB
-  hash = JSON.load(File.open(arg))
-  abid = hash['xref']['ab']
-  contact = ab.contact(abid)
-  if contact.nil?
-    contact = ab.lookup(hash['name']['first'], hash['name']['last'])
-    $stderr.puts "Address Book UUID has changed to #{contact.uuid}"
-    hash['xref']['ab'] = contact.uuid
-  end
-  if contact.nil?
-    raise "Unable to find matching contact record."
-  end
-  diffs = contact.compare(hash)
-  if diffs.any?
+  data = JSON.load(File.open(arg))
+  case data
+  when Hash
+    diffs = ab.diff(data)
+    if diffs.any?
+      puts JSON.pretty_generate(diffs)
+      # contact.patch(diffs)
+    else
+      puts "No changes."
+    end
+
+  when Array
+    diffs = data.map do |hash|
+      ab.diff(hash)
+    end
     puts JSON.pretty_generate(diffs)
-    # contact.patch(diffs)
+
   else
-    puts "No changes."
+    raise "Bad object #{data.class} in input"
   end
+
 
 else
   raise "Unknown command '#{command}'"

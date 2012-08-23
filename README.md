@@ -42,4 +42,10 @@ https://jmay%40pobox.com@p08-contacts.icloud.com/16422197/carddavhome/card/
 
 ## TODO
 
-* extract groups
+* hashdiff must work as a patcher, even with reordered lists: always do list deletes first
+* comparisons where one version has no data for a key (eg no addresses); add specs for comparison
+* move the hash comparison stuff to a separate gem?
+* recognizing UUID changes
+* comparisons for lists of contacts
+* comparison for entire contact database (capture deletes)
+* full code review to correct all the exception handling: return reasonable error classes, maybe don't always raise.
