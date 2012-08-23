@@ -64,6 +64,10 @@ when 'compare'
     raise "Bad object #{data.class} in input"
   end
 
+when 'update'
+  # same as 'compare', except that the changes should be applied back to the record
+  data = JSON.load(File.open(arg))
+  ab.apply(data)
 
 else
   raise "Unknown command '#{command}'"

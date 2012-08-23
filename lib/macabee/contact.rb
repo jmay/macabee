@@ -1,11 +1,34 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-require "hashdiff"
+# require "hashdiff"
+require "treet"
 
 class Macabee::Contact
   attr_reader :person
 
   ContactKeys = %w(name business other associates xref phones addresses emails links)
+
+  PropertyMappings = {
+    'name.first' => KABFirstNameProperty,
+    'name.middle' => KABMiddleNameProperty,
+    'name.last' => KABLastNameProperty,
+    'name.suffix' => KABSuffixProperty,
+    'name.nick' => KABNicknameProperty,
+    'name.title' => KABTitleProperty,
+
+    'business.organization' => KABOrganizationProperty,
+    'business.job_title' => KABJobTitleProperty,
+    'business.department' => KABDepartmentProperty,
+
+    'other.note' => KABNoteProperty,
+    'other.dob' => KABBirthdayProperty
+
+    # 'address[]' => 'address[].label',
+    # 'address[].street' => 'address[].street',
+
+    # 'phones' => :phone,
+    # 'emails' => :email
+  }
 
   @@mappings = {
     'name.first' => :first_name,
@@ -41,69 +64,52 @@ class Macabee::Contact
   end
 
   def self.compare(h1, h2)
-    diffs = []
-    ContactKeys.each do |k|
-      if h1[k] && h2[k] && (h1[k].class != h2[k].class)
-        raise "Incompatible object classes: #{h1[k].class} vs #{h2[k].class}"
-      end
-
-      if h1[k] || h2[k] # only compare keys that are defined in one or the other of the inputs
-        diff = case h1[k] || h2[k]
-        when Hash
-          HashDiff.diff(h1[k] || {}, h2[k] || {})
-        when Array
-          Macabee::Util.hasharraydiff(h1[k] || [], h2[k] || [])
-        else
-          raise "can't deal with #{h1[k].class} for #{k} in #{h1.inspect}"
-        end
-
-        diffs << diff if diff.any?
-      end
-
-
-      # diffs[k] = case transformed[k] || []
-      # when Hash
-      #   HashDiff.diff(transformed[k], target_hash[k])
-      #   # transformed[k].diff(target_hash[k])
-      # when Array
-        
-      # else
-      #   raise "can't deal with #{k} in #{transformed.inspect}"
-      # end
-    end
-
-    diffs
+    Treet::Hash.diff(h1, h2)
   end
 
   def compare(target_hash)
     Macabee::Contact.compare(to_hash, target_hash)
+  end
 
-    # return HashDiff.diff(to_hash, target_hash)
+  def apply(diffs)
+    diffs.each do |diff|
+      flag, key, v1, v2 = diff
+      if key =~ /\[/
+        keyname, is_array, index = key.match(/^(.*)(\[)(.*)\]$/).captures
+      else
+        keyname = key
+      end
 
-    # construct a diff that would transform the current record into the new hash
-    # should the inbound data contain the xref stuff? probably, because there might be xrefs from other sources;
-    # but the xrefs shouldn't be part of the comparison and shouldn't be stored back to the AB record.
-    # puts "COMPARING..."
-    # puts JSON.pretty_generate(transformed)
-    # puts "...TO..."
-    # puts JSON.pretty_generate(target_hash)
+      property = PropertyMappings[keyname]
 
-    # HashDiff.diff(transformed, target_hash)
+      case flag
+      when '~'
+        # change a value in place
 
-    # diffs = []
-    # ContactKeys.each do |k|
-    #   diffs[k] = case h1[k]
-    #   when Hash
-    #     HashDiff.diff(transformed[k], target_hash[k])
-    #     # transformed[k].diff(target_hash[k])
-    #   when Array
-    #     Macabee::Util.hasharraydiff(transformed[k] || [], target_hash[k])
-    #   else
-    #     raise "can't deal with #{k} in #{transformed.inspect}"
-    #   end
-    # end
+        if keyname == 'xref.ab'
+          puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
+        else
+          puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
+        end
 
-    # diffs
+      when '+'
+        # add something
+        if is_array
+          puts "MAP #{keyname} to MULTIVALUE and ADD #{v1}"
+        else
+          puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
+        end
+
+      when '-'
+        # remove something
+        if is_array
+          puts "MAP #{keyname} to MULTIVALUE and REMOVE INDEX #{index.to_i}"
+        else
+          puts "MAP #{keyname} TO #{property} AND DELETE"
+        end
+      end
+    end
+
   end
 
   def patch(diffs)
@@ -224,14 +230,14 @@ class Macabee::Contact
   def business
     {
       'organization' => get(KABOrganizationProperty),
-      'job_title' => get(KABTitleProperty),
+      'job_title' => get(KABJobTitleProperty),
       'department' => get(KABDepartmentProperty)
     }.reject {|k,v| v.nil?}
   end
 
   def other_data
     {
-      'birth_date' => get(KABBirthdayProperty),
+      'dob' => get(KABBirthdayProperty),
       'note' => get(KABNoteProperty)
     }.reject {|k,v| v.nil?}
   end
@@ -403,5 +409,9 @@ class Macabee::Contact
 
   def get(property)
     person.valueForProperty(property)
+  end
+
+  def set(property, value)
+    person.setValue(value, forProperty: property)
   end
 end

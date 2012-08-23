@@ -54,19 +54,28 @@ class Macabee::Contacts
     }
   end
 
-  def diff(hash)
+  def find(hash)
     abid = hash['xref']['ab']
     contact = contact(abid)
     if contact.nil?
       contact = lookup(hash['name']['first'], hash['name']['last'])
-      # $stderr.puts "Address Book UUID has changed to #{contact.uuid}"
-      # hash['xref']['ab'] = contact.uuid
+      # if this finds a match, then the local Address Book UUID has changed
     end
+    contact
+  end
+
+  def diff(hash)
+    contact = find(hash)
     if contact.nil?
       raise "Unable to find matching contact record."
     end
     contact.compare(hash)
+  end
 
+  def apply(hash)
+    contact = find(hash)
+    diffs = contact.compare(hash)
+    contact.apply(diffs)
   end
 
 end
