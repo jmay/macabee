@@ -9,7 +9,7 @@ class Macabee::Contacts
   end
 
   def contact(ab_id)
-    query = ABPerson.searchElementForProperty('com.apple.uuid',
+    query = ABPerson.searchElementForProperty(KABUIDProperty,
                     label:nil, key:nil, value: ab_id,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first

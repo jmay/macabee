@@ -146,9 +146,7 @@ class Macabee::Contact
       'business' => business,
       'other' => other_data,
       'associates' => associates,
-      'xref' => {
-        'ab' => get('com.apple.uuid')
-      },
+      'xref' => xref,
 
       # these are lists with zero or more members; duplicates allowed; member order is arbitrary (so we pick
       # a standardized order for list comparison purposes)
@@ -157,6 +155,17 @@ class Macabee::Contact
       'emails' => emails,
       'links' => links
     }.reject {|k,v| v.nil? || v.empty?}
+  end
+
+  def uuid
+    get(KABUIDProperty)
+  end
+
+  def xref
+    {
+      # 'ab' => get('com.apple.uuid')
+      'ab' => uuid
+    }
   end
 
   def names
