@@ -80,16 +80,14 @@ class Macabee::Contact
         when '~'
           # change a value in place
 
-          if keyname == 'xref.ab'
-            puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
-          elsif keyname == 'other.dob'
+          if keyname == 'other.dob'
             # date-of-birth must be formatted correctly
             dob = v1 && Date.parse(v1).to_time
             set(property, dob)
           elsif is_array
             raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
           else
-            puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
+            # puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
             set(property, v1)
           end
 
@@ -126,7 +124,11 @@ class Macabee::Contact
           end
         end
       else
-        raise "NO PROPERTY MAPPING FOR KEY #{keyname}"
+        if keyname == 'xref.ab'
+          raise "*** DO NOT APPLY CHANGES TO UID VALUE ***"
+        else
+          raise "NO PROPERTY MAPPING FOR KEY #{keyname}"
+        end
       end
     end
   end
@@ -290,20 +292,20 @@ class Macabee::Contact
 
   def delete_link(hash)
     meth = linktype(hash)
-    puts "Using #{meth} for #{hash.inspect}"
+    # puts "Using #{meth} for #{hash.inspect}"
     case meth
     when /handle/
       handles = person.send("#{meth}s").get.to_a
       this_index = handles.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['handle'])}
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
+      # puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
       person.send("#{meth}s").get[this_index].delete
 
     when /url/
       urls = person.urls.get.to_a
       this_index = urls.index {|h| (h.label.get == hash['label']) && (h.value.get == hash['url'])}
 
-      puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
+      # puts "person.send(:#{meth}s).get[#{this_index}].delete #{hash.inspect}"
       person.urls.get[this_index].delete
 
     when /social_profile/
@@ -312,7 +314,7 @@ class Macabee::Contact
       # this_index = profiles.index {|h| (h.service_name.get == hash['service']) && (h.url.get == (hash['url'] || :missing_value)) && (h.user_name.get == (hash['handle'] || :missing_value))}
       raise "Cannot find profile to delete for #{hash}" if this_index.nil?
 
-      puts "person.social_profiles.get[#{this_index}].delete #{hash}"
+      # puts "person.social_profiles.get[#{this_index}].delete #{hash}"
 
       # some sort of bug with deleting social profiles
       # http://macscripter.net/viewtopic.php?id=38956&p=2

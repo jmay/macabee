@@ -81,10 +81,15 @@ when 'update'
 
   when Array
     data.each do |rec|
-      contact = ab.apply(rec)
-      unless args.include?('nosave')
-        ab.save!
-        $stderr.puts "Saved #{contact}"
+      begin
+        contact = ab.apply(rec)
+        unless args.include?('nosave')
+          ab.save!
+          $stderr.puts "Saved #{contact}"
+        end
+      rescue Exception => e
+        $stderr.puts "Update failed: #{e.message}"
+        $stderr.puts e.backtrace.map{|s| "\t#{s}"}
       end
     end
 
