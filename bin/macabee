@@ -47,6 +47,11 @@ when 'compare'
   case data
   when Hash
     diffs = ab.diff(data)
+    if args.include?('xref')
+      # only consider xref (KABUIDProperty) changes
+      diffs = diffs.select {|d| d[1] == 'xref.ab'}
+    end
+
     if diffs.any?
       puts JSON.pretty_generate(diffs)
       # contact.patch(diffs)
