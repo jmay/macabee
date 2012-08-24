@@ -42,10 +42,10 @@ https://jmay%40pobox.com@p08-contacts.icloud.com/16422197/carddavhome/card/
 
 ## TODO
 
-* hashdiff must work as a patcher, even with reordered lists: always do list deletes first
-* comparisons where one version has no data for a key (eg no addresses); add specs for comparison
-* move the hash comparison stuff to a separate gem?
-* recognizing UUID changes
+* refac: format conversion (currently only used for other.dob)
+* promote fields from 'other' to top-level strings? (notes, dob) For sharing these individual values. Or allow sharing filters to use subkeys like 'other.notes'
+* add specs: comparison, patching - need to mock AB, or create & delete a private AB for testing. Travis-CI does not support macruby (no OSX servers)
+* recognizing UUID changes - don't apply those changes, put the AB version back
 * comparisons for lists of contacts
 * comparison for entire contact database (capture deletes)
 * full code review to correct all the exception handling: return reasonable error classes, maybe don't always raise.
