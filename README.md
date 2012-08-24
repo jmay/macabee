@@ -20,15 +20,22 @@ Or install it yourself as:
 
 Dump entire Address Book as JSON to standard output:
 
-    $ macabee
+    $ macabee dump
+    $ macabee contacts
+    $ macabee groups
 
 Dump out a single contact as JSON, where the `address-book-id` is the internal identifier, in the form "583BF34F-AD95-45FB-8521-05CB85C13079:ABPerson".
 
-    $ macabee {address-book-id}
+    $ macabee contact {address-book-id}
+    $ macabee lookup [firstname] [lastname]
 
-Compare a JSON input to the matching contact record in Address Book, and apply any changes to the Address Book record.
+Compare a JSON input to the matching contact record in Address Book:
 
-    $ macabee inputfile.json
+    $ macabee compare inputfile.json
+
+Compare as above, and apply any changes to the Address Book record.
+
+    $ macabee compare inputfile.json
 
 ## Contributing
 

@@ -51,14 +51,18 @@ when 'compare'
       puts JSON.pretty_generate(diffs)
       # contact.patch(diffs)
     else
-      puts "No changes."
+      $stderr.puts "No changes."
     end
 
   when Array
     diffs = data.map do |hash|
       ab.diff(hash)
     end
-    puts JSON.pretty_generate(diffs)
+    if diffs.map(&:any?).any?
+      puts JSON.pretty_generate(diffs)
+    else
+      $stderr.puts "No changes."
+    end
 
   else
     raise "Bad object #{data.class} in input"
@@ -67,10 +71,25 @@ when 'compare'
 when 'update'
   # same as 'compare', except that the changes should be applied back to the record
   data = JSON.load(File.open(arg))
-  ab.apply(data)
-  unless args.include?('nosave')
-    ab.save!
-    $stderr.puts "Saved."
+  case data
+  when Hash
+    contact = ab.apply(data)
+    unless args.include?('nosave')
+      ab.save!
+      $stderr.puts "Saved #{contact}"
+    end
+
+  when Array
+    data.each do |rec|
+      contact = ab.apply(rec)
+      unless args.include?('nosave')
+        ab.save!
+        $stderr.puts "Saved #{contact}"
+      end
+    end
+
+  else
+    raise "Bad object #{data.class} in input"
   end
 
 else

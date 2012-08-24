@@ -76,6 +76,7 @@ class Macabee::Contacts
     contact = find(hash)
     diffs = contact.compare(hash)
     contact.apply(diffs)
+    contact
   end
 
   # persist any staged contact changes to the database

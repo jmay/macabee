@@ -35,25 +35,6 @@ class Macabee::Contact
     # 'emails' => :email
   }
 
-  @@mappings = {
-    'name.first' => :first_name,
-    'name.middle' => :middle_name,
-    'name.last' => :last_name,
-    'name.suffix' => :suffix,
-
-    'business.job_title' => :job_title,
-    'business.organization' => :organization,
-    'business.company' => :company,
-
-    'other.note' => :note,
-
-    'address[]' => 'address[].label',
-    'address[].street' => 'address[].street',
-
-    'phones' => :phone,
-    'emails' => :email
-  }
-
 
   # suck all the contacts from local MacOSX Address Book into a single array
   def initialize(person)
@@ -67,6 +48,12 @@ class Macabee::Contact
   def to_hash
     transformed
   end
+
+  def to_s
+    h = to_hash
+    "#{h['xref']['ab']}: #{h['name']['first']} #{h['name']['last']}"
+  end
+
 
   def self.compare(h1, h2)
     Treet::Hash.diff(h1, h2)
@@ -143,80 +130,6 @@ class Macabee::Contact
       end
     end
   end
-
-  # def patch(diffs)
-  #   diffs.each do |k,diff|
-  #     case diff
-  #     when Array
-  #       # if diff.empty?
-  #       #   puts "No changes for #{k}"
-  #       # end
-  #       diff.each do |action,field,v1,v2|
-  #         abfield = @@mappings["#{k}.#{field}"]
-  #         raise "unmapped field #{k}" unless abfield
-
-  #         case action
-  #         when '~' # replace
-  #           puts "person.#{abfield}.set('#{v2}')"
-  #           person.send(abfield).set(v2)
-
-  #         when '+' # add
-  #           puts "person.#{abfield}.set('#{v1}')"
-  #           person.send(abfield).set(v1)
-
-  #         when '-' # delete
-  #           puts "person.#{abfield}.delete"
-  #           person.send(abfield).delete
-
-  #         else
-  #           raise "unknown action [#{diff}] for #{k}"
-  #         end
-  #       end
-
-  #     when Hash
-  #       abfield = @@mappings[k]
-  #       case k
-  #       when 'phones', 'emails'
-  #         diff[:deletes].each do |index|
-  #           puts "person.send(#{k}).get[#{index}].delete"
-  #           person.send(k).get[index].delete
-  #         end
-  #         diff[:adds].each do |hash|
-  #           data = self.send("to_#{abfield}", hash)
-  #           puts "ab.make(:new => :#{abfield}, :at => #{person}, :with_properties => #{data.inspect}"
-  #           person.make(:new => abfield.to_sym, :at => person, :with_properties => data)
-  #         end
-
-  #       when 'links'
-  #         # figure out what type of object this is (url, social profile, im handle) and Do The Right Thing
-
-  #         diff[:deletes].each do |index|
-  #           delete_link(transformed['links'][index])
-  #         end
-  #         diff[:adds].each do |hash|
-  #           meth = linktype(hash)
-  #           data = self.send("to_#{meth}", hash)
-  #           puts "ab.make(:new => :#{meth}, :at => #{person}, :with_properties => #{data.inspect}"
-  #           person.make(:new => meth.to_sym, :at => person, :with_properties => data)
-  #         end
-
-  #         # if diff[:deletes].any? || diff[:adds].any?
-  #         #   raise "links are not supported yet"
-  #         # end
-
-  #       else
-  #         raise "unmapped field #{k}"
-  #       end
-
-  #     else
-  #       raise "cannot apply diff #{diff.inspect} for #{k}"
-  #     end
-
-  #   end
-  #   puts "person.save"
-  #   person.save
-
-  # end
 
   # transform an individual contact to our standard structure
   def transform
