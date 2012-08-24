@@ -1,6 +1,5 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-# require "hashdiff"
 require "treet"
 
 class Macabee::Contact
@@ -96,6 +95,10 @@ class Macabee::Contact
 
           if keyname == 'xref.ab'
             puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
+          elsif keyname == 'other.dob'
+            # date-of-birth must be formatted correctly
+            dob = v1 && Date.parse(v1).to_time
+            set(property, dob)
           elsif is_array
             raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
           else
@@ -105,7 +108,11 @@ class Macabee::Contact
 
         when '+'
           # add something
-          if is_array
+          if keyname == 'other.dob'
+            # date-of-birth must be formatted correctly
+            dob = v1 && Date.parse(v1).to_time
+            set(property, dob)
+          elsif is_array
             # multivalue property
             if property == []
               add_link(v1)
@@ -262,7 +269,7 @@ class Macabee::Contact
 
   def other_data
     {
-      'dob' => get(KABBirthdayProperty),
+      'dob' => (dob = get(KABBirthdayProperty)) && dob.to_date.to_s,
       'note' => get(KABNoteProperty)
     }.reject {|k,v| v.nil?}
   end
