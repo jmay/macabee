@@ -26,6 +26,7 @@ class Macabee::Contact
     'phones' => [KABPhoneProperty, 'phone'],
     'emails' => [KABEmailProperty, 'email'],
     'addresses' => [KABAddressProperty, :to_ab_address],
+    'links' => []
     # 'links' => THIS IS SPECIAL
 
     # 'address[]' => 'address[].label',
@@ -95,6 +96,8 @@ class Macabee::Contact
 
           if keyname == 'xref.ab'
             puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
+          elsif is_array
+            raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
           else
             puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
             set(property, v2)
@@ -104,7 +107,11 @@ class Macabee::Contact
           # add something
           if is_array
             puts "MAP #{keyname} TO MULTIVALUE #{property} and ADD #{v1}"
-            addmulti(property.first, v1, property.last)
+            if property == []
+              add_link(v1)
+            else
+              addmulti(property.first, v1, property.last)
+            end
           else
             puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
             set(property, v1)
@@ -114,7 +121,11 @@ class Macabee::Contact
           # remove something
           if is_array
             puts "MAP #{keyname} to MULTIVALUE and REMOVE INDEX #{index.to_i}"
-            delmulti(property.first, index.to_i)
+            if property == []
+              del_link(index.to_i, v1)
+            else
+              delmulti(property.first, index.to_i)
+            end
           else
             puts "MAP #{keyname} TO #{property} AND DELETE"
             set(property, nil)
@@ -333,20 +344,27 @@ class Macabee::Contact
       h = multi.valueAtIndex(i)
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
-        'service' => h['InstantMessageService'],
+        'service' => ABPerson.ABCopyLocalizedPropertyOrLabel(h['InstantMessageService']),
         'handle' => h['InstantMessageUsername']
       }.reject {|k,v| v.nil? || v.empty? || v == 'None'}
     end
   end
 
-
-  def linktype(hash)
-    if hash['handle'] && hash['service'] && !hash['url']
-      "#{hash['service']}_handle"
+  # determine what slot in the Address Book taxonomy a particular link belongs to:
+  # * instant messaging accounts (KABInstantMessageProperty) have a handle but no URL; optionally a service
+  # * social profiles (KABSocialProfileProperty) have a service and either handle or URL
+  # * urls (KABURLsProperty) have ONLY a url, no service
+  # Social profiles take precedence over IM accounts.
+  # Output is the AB property key and the value prepared for storing with hash keys renamed for AB.
+  def classify(hash)
+    if hash['handle'] && !hash['url']
+      [KABInstantMessageProperty, to_ab_im_handle(hash)]
     elsif hash['service']
-      'social_profile'
+      [KABSocialProfileProperty, to_ab_social_profile(hash)]
+    elsif hash['url']
+      [KABURLsProperty, hash['url']]
     else
-      'url'
+      raise "I can't recognize this link data: #{hash}"
     end
   end
 
@@ -390,21 +408,6 @@ class Macabee::Contact
     end
   end
 
-  def to_url(hash)
-    {
-      :label => hash['label'],
-      :value => hash['url']
-    }
-  end
-
-  def to_social_profile(hash)
-    {
-      :service_name => hash['service'],
-      :user_name => hash['handle'],
-      :url => hash['url']
-    }.reject {|k,v| v.nil?}
-  end
-
   def to_ab_address(h)
     {
       KABAddressStreetKey => h['street'],
@@ -415,7 +418,27 @@ class Macabee::Contact
     }
   end
 
-  private
+  def to_ab_url
+    # not needed, this is a standard labeled multi-value string list
+  end
+
+  def to_ab_im_handle(h)
+    {
+      'InstantMessageService' => h['service'],
+      'InstantMessageUsername' => h['handle']
+    }
+  end
+
+  def to_ab_social_profile(hash)
+    {
+      'serviceName' => hash['service'],
+      'username' => hash['handle'],
+      'url' => hash['url']
+    }.reject {|k,v| v.nil?}
+  end
+
+
+  # private
 
   def get(property)
     person.valueForProperty(property)
