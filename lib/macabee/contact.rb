@@ -99,8 +99,8 @@ class Macabee::Contact
           elsif is_array
             raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
           else
-            puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
-            set(property, v2)
+            puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
+            set(property, v1)
           end
 
         when '+'
@@ -358,11 +358,11 @@ class Macabee::Contact
   # Output is the AB property key and the value prepared for storing with hash keys renamed for AB.
   def classify(hash)
     if hash['handle'] && !hash['url']
-      [KABInstantMessageProperty, to_ab_im_handle(hash)]
+      KABInstantMessageProperty
     elsif hash['service']
-      [KABSocialProfileProperty, to_ab_social_profile(hash)]
+      KABSocialProfileProperty
     elsif hash['url']
-      [KABURLsProperty, hash['url']]
+      KABURLsProperty
     else
       raise "I can't recognize this link data: #{hash}"
     end
@@ -461,18 +461,67 @@ class Macabee::Contact
     when Symbol
       # a hash/dictionary for each entry in the MultiValue list, this says how to convert it
       # field names must be what Address Book expects, or it will reject the entry silently
-      send(keyname, hash)
+      send(rule, hash)
     else
       raise "Don't know what to do with #{keyname.class} for #{property} #{hash}"
     end
 
-    multi.addValue(value, withLabel: hash['label'])
+    puts "ADDVALUE #{property} WITH #{value} FOR #{hash['label']}"
+    multi.addValue(value, withLabel: hash['label'] || '')
     set(property, multi)
+  end
+
+  def add_link(valueToInsert)
+    property = classify(valueToInsert)
+    formattedHash = case property
+    when KABURLsProperty
+      puts "INSERT #{property} AS #{valueToInsert}"
+      addmulti(property, to_ab_url(valueToInsert), 'url')
+      # to_ab_url(valueToInsert)
+    when KABSocialProfileProperty
+      puts "INSERT #{property} AS #{valueToInsert}"
+      addmulti(property, valueToInsert, :to_ab_social_profile)
+      # to_ab_social_profile(valueToInsert)
+    when KABInstantMessageProperty
+      puts "INSERT #{property} AS #{valueToInsert}"
+      addmulti(property, valueToInsert, :to_ab_im_handle)
+      # to_ab_im_handle(valueToInsert)
+    else
+      raise "Ouch!"
+    end
+    # puts "INSERT #{property} AS #{formattedHash}"
+    # if property == KABURLsProperty
+    #   addmulti(property, formattedHash, 'url')
+    # else
+    #   addmulti(property, formattedHash, 'url')
+    # end
   end
 
   def delmulti(property, index)
     multi = get(property).mutableCopy
     multi.removeValueAndLabelAtIndex(index)
     set(property, multi)
+  end
+
+  def del_link(i, valueToDelete)
+    property, hash = classify(valueToDelete)
+
+    current = case property
+    when KABURLsProperty
+      urls
+    when KABSocialProfileProperty
+      social_profiles
+    when KABInstantMessageProperty
+      im_handles
+    else
+      raise "Ouch!"
+    end
+    puts current
+    if pos = current.index(valueToDelete)
+      puts "FOUND AT POS #{pos}"
+      delmulti(property, pos)
+    else
+      puts "NO MATCH FOUND FOR #{valueToDelete}"
+    end
   end
 end
