@@ -106,28 +106,28 @@ class Macabee::Contact
         when '+'
           # add something
           if is_array
-            puts "MAP #{keyname} TO MULTIVALUE #{property} and ADD #{v1}"
+            # multivalue property
             if property == []
               add_link(v1)
             else
               addmulti(property.first, v1, property.last)
             end
           else
-            puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
+            # scalar property
             set(property, v1)
           end
 
         when '-'
           # remove something
           if is_array
-            puts "MAP #{keyname} to MULTIVALUE and REMOVE INDEX #{index.to_i}"
+            # multivalue property
             if property == []
               del_link(index.to_i, v1)
             else
               delmulti(property.first, index.to_i)
             end
           else
-            puts "MAP #{keyname} TO #{property} AND DELETE"
+            # scalar property
             set(property, nil)
           end
         end
@@ -137,79 +137,79 @@ class Macabee::Contact
     end
   end
 
-  def patch(diffs)
-    diffs.each do |k,diff|
-      case diff
-      when Array
-        # if diff.empty?
-        #   puts "No changes for #{k}"
-        # end
-        diff.each do |action,field,v1,v2|
-          abfield = @@mappings["#{k}.#{field}"]
-          raise "unmapped field #{k}" unless abfield
+  # def patch(diffs)
+  #   diffs.each do |k,diff|
+  #     case diff
+  #     when Array
+  #       # if diff.empty?
+  #       #   puts "No changes for #{k}"
+  #       # end
+  #       diff.each do |action,field,v1,v2|
+  #         abfield = @@mappings["#{k}.#{field}"]
+  #         raise "unmapped field #{k}" unless abfield
 
-          case action
-          when '~' # replace
-            puts "person.#{abfield}.set('#{v2}')"
-            person.send(abfield).set(v2)
+  #         case action
+  #         when '~' # replace
+  #           puts "person.#{abfield}.set('#{v2}')"
+  #           person.send(abfield).set(v2)
 
-          when '+' # add
-            puts "person.#{abfield}.set('#{v1}')"
-            person.send(abfield).set(v1)
+  #         when '+' # add
+  #           puts "person.#{abfield}.set('#{v1}')"
+  #           person.send(abfield).set(v1)
 
-          when '-' # delete
-            puts "person.#{abfield}.delete"
-            person.send(abfield).delete
+  #         when '-' # delete
+  #           puts "person.#{abfield}.delete"
+  #           person.send(abfield).delete
 
-          else
-            raise "unknown action [#{diff}] for #{k}"
-          end
-        end
+  #         else
+  #           raise "unknown action [#{diff}] for #{k}"
+  #         end
+  #       end
 
-      when Hash
-        abfield = @@mappings[k]
-        case k
-        when 'phones', 'emails'
-          diff[:deletes].each do |index|
-            puts "person.send(#{k}).get[#{index}].delete"
-            person.send(k).get[index].delete
-          end
-          diff[:adds].each do |hash|
-            data = self.send("to_#{abfield}", hash)
-            puts "ab.make(:new => :#{abfield}, :at => #{person}, :with_properties => #{data.inspect}"
-            person.make(:new => abfield.to_sym, :at => person, :with_properties => data)
-          end
+  #     when Hash
+  #       abfield = @@mappings[k]
+  #       case k
+  #       when 'phones', 'emails'
+  #         diff[:deletes].each do |index|
+  #           puts "person.send(#{k}).get[#{index}].delete"
+  #           person.send(k).get[index].delete
+  #         end
+  #         diff[:adds].each do |hash|
+  #           data = self.send("to_#{abfield}", hash)
+  #           puts "ab.make(:new => :#{abfield}, :at => #{person}, :with_properties => #{data.inspect}"
+  #           person.make(:new => abfield.to_sym, :at => person, :with_properties => data)
+  #         end
 
-        when 'links'
-          # figure out what type of object this is (url, social profile, im handle) and Do The Right Thing
+  #       when 'links'
+  #         # figure out what type of object this is (url, social profile, im handle) and Do The Right Thing
 
-          diff[:deletes].each do |index|
-            delete_link(transformed['links'][index])
-          end
-          diff[:adds].each do |hash|
-            meth = linktype(hash)
-            data = self.send("to_#{meth}", hash)
-            puts "ab.make(:new => :#{meth}, :at => #{person}, :with_properties => #{data.inspect}"
-            person.make(:new => meth.to_sym, :at => person, :with_properties => data)
-          end
+  #         diff[:deletes].each do |index|
+  #           delete_link(transformed['links'][index])
+  #         end
+  #         diff[:adds].each do |hash|
+  #           meth = linktype(hash)
+  #           data = self.send("to_#{meth}", hash)
+  #           puts "ab.make(:new => :#{meth}, :at => #{person}, :with_properties => #{data.inspect}"
+  #           person.make(:new => meth.to_sym, :at => person, :with_properties => data)
+  #         end
 
-          # if diff[:deletes].any? || diff[:adds].any?
-          #   raise "links are not supported yet"
-          # end
+  #         # if diff[:deletes].any? || diff[:adds].any?
+  #         #   raise "links are not supported yet"
+  #         # end
 
-        else
-          raise "unmapped field #{k}"
-        end
+  #       else
+  #         raise "unmapped field #{k}"
+  #       end
 
-      else
-        raise "cannot apply diff #{diff.inspect} for #{k}"
-      end
+  #     else
+  #       raise "cannot apply diff #{diff.inspect} for #{k}"
+  #     end
 
-    end
-    puts "person.save"
-    person.save
+  #   end
+  #   puts "person.save"
+  #   person.save
 
-  end
+  # end
 
   # transform an individual contact to our standard structure
   def transform
@@ -466,7 +466,6 @@ class Macabee::Contact
       raise "Don't know what to do with #{keyname.class} for #{property} #{hash}"
     end
 
-    puts "ADDVALUE #{property} WITH #{value} FOR #{hash['label']}"
     multi.addValue(value, withLabel: hash['label'] || '')
     set(property, multi)
   end
@@ -475,26 +474,14 @@ class Macabee::Contact
     property = classify(valueToInsert)
     formattedHash = case property
     when KABURLsProperty
-      puts "INSERT #{property} AS #{valueToInsert}"
       addmulti(property, to_ab_url(valueToInsert), 'url')
-      # to_ab_url(valueToInsert)
     when KABSocialProfileProperty
-      puts "INSERT #{property} AS #{valueToInsert}"
       addmulti(property, valueToInsert, :to_ab_social_profile)
-      # to_ab_social_profile(valueToInsert)
     when KABInstantMessageProperty
-      puts "INSERT #{property} AS #{valueToInsert}"
       addmulti(property, valueToInsert, :to_ab_im_handle)
-      # to_ab_im_handle(valueToInsert)
     else
       raise "Ouch!"
     end
-    # puts "INSERT #{property} AS #{formattedHash}"
-    # if property == KABURLsProperty
-    #   addmulti(property, formattedHash, 'url')
-    # else
-    #   addmulti(property, formattedHash, 'url')
-    # end
   end
 
   def delmulti(property, index)
@@ -518,7 +505,6 @@ class Macabee::Contact
     end
     puts current
     if pos = current.index(valueToDelete)
-      puts "FOUND AT POS #{pos}"
       delmulti(property, pos)
     else
       puts "NO MATCH FOUND FOR #{valueToDelete}"
