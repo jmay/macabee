@@ -68,6 +68,10 @@ when 'update'
   # same as 'compare', except that the changes should be applied back to the record
   data = JSON.load(File.open(arg))
   ab.apply(data)
+  unless args.include?('nosave')
+    ab.save!
+    $stderr.puts "Saved."
+  end
 
 else
   raise "Unknown command '#{command}'"

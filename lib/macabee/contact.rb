@@ -21,7 +21,12 @@ class Macabee::Contact
     'business.department' => KABDepartmentProperty,
 
     'other.note' => KABNoteProperty,
-    'other.dob' => KABBirthdayProperty
+    'other.dob' => KABBirthdayProperty,
+
+    'phones' => [KABPhoneProperty, 'phone'],
+    'emails' => [KABEmailProperty, 'email'],
+    'addresses' => [KABAddressProperty, :to_ab_address],
+    # 'links' => THIS IS SPECIAL
 
     # 'address[]' => 'address[].label',
     # 'address[].street' => 'address[].street',
@@ -71,6 +76,8 @@ class Macabee::Contact
     Macabee::Contact.compare(to_hash, target_hash)
   end
 
+  # WARNING: `#apply` only *stages* the changes to the ABPerson record.
+  # In order to persist those changes to the database, you must call `#save` on the ABAddressBook object!
   def apply(diffs)
     diffs.each do |diff|
       flag, key, v1, v2 = diff
@@ -81,35 +88,42 @@ class Macabee::Contact
       end
 
       property = PropertyMappings[keyname]
+      if property
+        case flag
+        when '~'
+          # change a value in place
 
-      case flag
-      when '~'
-        # change a value in place
+          if keyname == 'xref.ab'
+            puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
+          else
+            puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
+            set(property, v2)
+          end
 
-        if keyname == 'xref.ab'
-          puts "*** DO NOT APPLY CHANGES TO UID VALUE ***"
-        else
-          puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
+        when '+'
+          # add something
+          if is_array
+            puts "MAP #{keyname} TO MULTIVALUE #{property} and ADD #{v1}"
+            addmulti(property.first, v1, property.last)
+          else
+            puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
+            set(property, v1)
+          end
+
+        when '-'
+          # remove something
+          if is_array
+            puts "MAP #{keyname} to MULTIVALUE and REMOVE INDEX #{index.to_i}"
+            delmulti(property.first, index.to_i)
+          else
+            puts "MAP #{keyname} TO #{property} AND DELETE"
+            set(property, nil)
+          end
         end
-
-      when '+'
-        # add something
-        if is_array
-          puts "MAP #{keyname} to MULTIVALUE and ADD #{v1}"
-        else
-          puts "MAP #{keyname} TO #{property} AND SET TO #{v2}"
-        end
-
-      when '-'
-        # remove something
-        if is_array
-          puts "MAP #{keyname} to MULTIVALUE and REMOVE INDEX #{index.to_i}"
-        else
-          puts "MAP #{keyname} TO #{property} AND DELETE"
-        end
+      else
+        raise "NO PROPERTY MAPPING FOR KEY #{keyname}"
       end
     end
-
   end
 
   def patch(diffs)
@@ -268,11 +282,11 @@ class Macabee::Contact
       h = multi.valueAtIndex(i)
       {
         'label' => ABPerson.ABCopyLocalizedPropertyOrLabel(multi.labelAtIndex(i)),
-        'street' => h['Street'],
-        'city' => h['City'],
-        'state' => h['State'],
-        'postalcode' => h['ZIP'],
-        'country' => h['Country']
+        'street' => h[KABAddressStreetKey],
+        'city' => h[KABAddressCityKey],
+        'state' => h[KABAddressStateKey],
+        'postalcode' => h[KABAddressZIPKey],
+        'country' => h[KABAddressCountryKey]
       }.reject {|k,v| v.nil? || v.empty?}
     end
   end
@@ -376,20 +390,6 @@ class Macabee::Contact
     end
   end
 
-  def to_phone(hash)
-    {
-      :label => hash['label'],
-      :value => hash['phone']
-    }
-  end
-
-  def to_email(hash)
-    {
-      :label => hash['label'],
-      :value => hash['email']
-    }
-  end
-
   def to_url(hash)
     {
       :label => hash['label'],
@@ -405,6 +405,16 @@ class Macabee::Contact
     }.reject {|k,v| v.nil?}
   end
 
+  def to_ab_address(h)
+    {
+      KABAddressStreetKey => h['street'],
+      KABAddressCityKey => h['city'],
+      KABAddressStateKey => h['state'],
+      KABAddressZIPKey => h['postalcode'],
+      KABAddressCountryKey => h['country']
+    }
+  end
+
   private
 
   def get(property)
@@ -413,5 +423,33 @@ class Macabee::Contact
 
   def set(property, value)
     person.setValue(value, forProperty: property)
+  end
+
+  def addmulti(property, hash, rule)
+    staticvalue = get(property) # this is a ABMultiValueCoreDataWrapper, can't alter it
+    multi = staticvalue ? staticvalue.mutableCopy : ABMutableMultiValue.new
+
+    # if keyname is blank, the value is the entire hash
+    # (it's a kABMultiDictionaryProperty like for kABAddressProperty)
+    value = case rule
+    when String
+      # a single value for each entry in the MultiValue list, this says where to get it from the hash
+      hash[rule]
+    when Symbol
+      # a hash/dictionary for each entry in the MultiValue list, this says how to convert it
+      # field names must be what Address Book expects, or it will reject the entry silently
+      send(keyname, hash)
+    else
+      raise "Don't know what to do with #{keyname.class} for #{property} #{hash}"
+    end
+
+    multi.addValue(value, withLabel: hash['label'])
+    set(property, multi)
+  end
+
+  def delmulti(property, index)
+    multi = get(property).mutableCopy
+    multi.removeValueAndLabelAtIndex(index)
+    set(property, multi)
   end
 end

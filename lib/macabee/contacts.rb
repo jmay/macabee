@@ -78,4 +78,8 @@ class Macabee::Contacts
     contact.apply(diffs)
   end
 
+  # persist any staged contact changes to the database
+  def save!
+    @ab.save
+  end
 end
