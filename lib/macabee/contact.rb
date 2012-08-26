@@ -5,7 +5,7 @@ require "treet"
 class Macabee::Contact
   attr_reader :person
 
-  ContactKeys = %w(name business other associates xref phones addresses emails links)
+  ContactKeys = %w(name org other associates xref phones addresses emails links)
 
   PropertyMappings = {
     'name.first' => KABFirstNameProperty,
@@ -15,9 +15,9 @@ class Macabee::Contact
     'name.nick' => KABNicknameProperty,
     'name.title' => KABTitleProperty,
 
-    'business.organization' => KABOrganizationProperty,
-    'business.job_title' => KABJobTitleProperty,
-    'business.department' => KABDepartmentProperty,
+    'org.organization' => KABOrganizationProperty,
+    'org.job_title' => KABJobTitleProperty,
+    'org.department' => KABDepartmentProperty,
 
     'other.note' => KABNoteProperty,
     'other.dob' => KABBirthdayProperty,
@@ -137,7 +137,7 @@ class Macabee::Contact
   def transform
     {
       'name' => names,
-      'business' => business,
+      'org' => org,
       'other' => other_data,
       'associates' => associates,
       'xref' => xref,
@@ -174,12 +174,13 @@ class Macabee::Contact
     }.reject {|k,v| v.nil?}
   end
 
-  def business
+  def org
     {
       'organization' => get(KABOrganizationProperty),
       'job_title' => get(KABJobTitleProperty),
-      'department' => get(KABDepartmentProperty)
-    }.reject {|k,v| v.nil?}
+      'department' => get(KABDepartmentProperty),
+      'is_org' => (get(KABPersonFlags) & 01 == 1)
+    }.reject {|k,v| !v} # only nil and false evaluate to false
   end
 
   def other_data
