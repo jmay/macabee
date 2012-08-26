@@ -18,6 +18,7 @@ class Macabee::Contact
     'org.organization' => KABOrganizationProperty,
     'org.job_title' => KABJobTitleProperty,
     'org.department' => KABDepartmentProperty,
+    'org.is_org' => KABPersonFlags,
 
     'other.note' => KABNoteProperty,
     'other.dob' => KABBirthdayProperty,
@@ -84,6 +85,9 @@ class Macabee::Contact
             # date-of-birth must be formatted correctly
             dob = v1 && Date.parse(v1).to_time
             set(property, dob)
+          elsif keyname == 'org.is_org'
+            # must merge with other flags
+            set_org(property, v1)
           elsif is_array
             raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
           else
@@ -97,6 +101,9 @@ class Macabee::Contact
             # date-of-birth must be formatted correctly
             dob = v1 && Date.parse(v1).to_time
             set(property, dob)
+          elsif keyname == 'org.is_org'
+            # must merge with other flags
+            set_org(property, v1)
           elsif is_array
             # multivalue property
             if property == []
@@ -120,7 +127,13 @@ class Macabee::Contact
             end
           else
             # scalar property
-            set(property, nil)
+            if keyname == 'org.is_org'
+              # must clear a flag bit, not wipe the entire flag
+              set_org(property, 0)
+            else
+              # set the value to nil
+              set(property, nil)
+            end
           end
         end
       else
@@ -369,6 +382,12 @@ class Macabee::Contact
 
   def set(property, value)
     person.setValue(value, forProperty: property)
+  end
+
+  def set_org(property, bool)
+    current_value = get(property)
+    new_value = current_value ^ (bool ? 1 : 0)
+    set(property, new_value)
   end
 
   def addmulti(property, hash, rule)
