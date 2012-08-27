@@ -36,7 +36,7 @@ class Macabee::Contacts
     query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2])
     matches = ab.recordsMatchingSearchElement(query)
     if matches.count == 1
-      rec = ab.recordsMatchingSearchElement(query).first
+      rec = matches.first
       Macabee::Contact.new(rec)
     else
       # return nothing if there are no matches, or many
@@ -127,6 +127,16 @@ class Macabee::Contacts
               data['xref']['ab']
             ]
           ]
+        end
+      else
+        # check for a matching record that we don't already have in the inbound
+        if contact = lookup(data)
+          # found one
+          already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref']['ab']) == contact.uuid}
+          if !already_known
+            changeset = contact.reverse_compare(data)
+            changes[contact.uuid] = changeset
+          end
         end
       end
     end
