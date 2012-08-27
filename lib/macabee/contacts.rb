@@ -17,7 +17,16 @@ class Macabee::Contacts
     end
   end
 
-  def lookup(firstname, lastname)
+  def lookup(*args)
+    case args.count
+    when 2
+      firstname, lastname = args
+    when 1
+      d = args.first
+      firstname = d['name'] && d['name']['first']
+      lastname = d['name'] && d['name']['last']
+    end
+
     q1 = ABPerson.searchElementForProperty(KABFirstNameProperty,
                     label:nil, key:nil, value: firstname,
                     comparison:KABEqual)
@@ -25,13 +34,19 @@ class Macabee::Contacts
                     label:nil, key:nil, value: lastname,
                     comparison:KABEqual)
     query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2])
-    if rec = ab.recordsMatchingSearchElement(query).first
+    matches = ab.recordsMatchingSearchElement(query)
+    if matches.count == 1
+      rec = ab.recordsMatchingSearchElement(query).first
       Macabee::Contact.new(rec)
+    else
+      # return nothing if there are no matches, or many
+      # TODO: figure out better multi-match handling; any reliable way to guess which one we want?
+      nil
     end
   end
 
   def group(ab_id)
-    query = ABGroup.searchElementForProperty('com.apple.uuid',
+    query = ABGroup.searchElementForProperty(KABUIDProperty,
                     label:nil, key:nil, value: ab_id,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first
@@ -89,8 +104,12 @@ class Macabee::Contacts
         # reconstitute them in AB.
 
         contact = find(data)
+        if !contact
+          contact = lookup(data)
+        end
+
         if contact
-          changeset = contact.compare(data)
+          changeset = contact.reverse_compare(data)
           if changeset.any?
             # there have been changes
             changes[contact.uuid] = changeset

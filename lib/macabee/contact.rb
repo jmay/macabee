@@ -64,6 +64,10 @@ class Macabee::Contact
     Macabee::Contact.compare(to_hash, target_hash)
   end
 
+  def reverse_compare(target_hash)
+    Macabee::Contact.compare(target_hash, to_hash)
+  end
+
   # WARNING: `#apply` only *stages* the changes to the ABPerson record.
   # In order to persist those changes to the database, you must call `#save` on the ABAddressBook object!
   def apply(diffs)

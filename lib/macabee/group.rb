@@ -26,9 +26,21 @@ class Macabee::Group
     {
       'name' => ab_group.name,
       'contacts' => contacts,
-      'xref' => {
-        'ab' => ab_group.valueForProperty('com.apple.uuid')
-      },
+      'xref' => xref
+    }
+  end
+
+  def uuid
+    to_hash['xref']['ab']
+  end
+
+  def lookup_uuid
+    get(KABUIDProperty)
+  end
+
+  def xref
+    {
+      'ab' => lookup_uuid
     }
   end
 
@@ -36,7 +48,11 @@ class Macabee::Group
   # The OSX `.members` function does not return the list in a consistent order, so sort by UUID value for convenience.
   def contacts
     ab_group.members.map do |p|
-      p.valueForProperty('com.apple.uuid')
+      p.valueForProperty(KABUIDProperty)
     end.sort
+  end
+
+  def get(property)
+    ab_group.valueForProperty(property)
   end
 end
