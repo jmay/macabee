@@ -102,6 +102,14 @@ when 'update'
     raise "Bad object #{data.class} in input"
   end
 
+
+when 'revise'
+  # input should be a representation of the entire contact list; look for local updates
+  data = JSON.load(File.open(arg))
+  revisions = ab.revise(data)
+  puts JSON.pretty_generate(revisions)
+
+
 else
   raise "Unknown command '#{command}'"
 end
