@@ -79,11 +79,11 @@ class Macabee::Contacts
     }
   end
 
-  def contacts_indexed
-    @contacts_indexed ||= contacts.each_with_object({}) do |contact, hash|
-      hash[contact.uuid] = contact
-    end
-  end
+  # def contacts_indexed
+  #   @contacts_indexed ||= contacts.each_with_object({}) do |contact, hash|
+  #     hash[contact.uuid] = contact
+  #   end
+  # end
 
   def find(hash)
     abid = hash['xref']['ab']
@@ -177,10 +177,10 @@ class Macabee::Contacts
     @ab.save
   end
 
-  def additions(contactlist)
-    newkeys = contacts_indexed.keys - contactlist.map{|c| c['xref'] && c['xref']['ab']}
-    newkeys.each_with_object({}) {|k, hash| hash[k] = contacts_indexed[k].to_hash}
-  end
+  # def additions(contactlist)
+  #   newkeys = contacts_indexed.keys - contactlist.map{|c| c['xref'] && c['xref']['ab']}
+  #   newkeys.each_with_object({}) {|k, hash| hash[k] = contacts_indexed[k].to_hash}
+  # end
 
   # collection of record changes describing AB data state that doesn't match the inbound source records
   def revise(contactlist, opts = {})
