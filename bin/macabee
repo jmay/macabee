@@ -111,10 +111,12 @@ when 'update'
 
 
 when 'revise'
+  jsonfile, hint = args
+
   # compare the contacts in the input JSON against what is currently in AB
   # generate instructions to update the input to reflect the AB state
-  data = JSON.load(File.open(arg))
-  revisions = ab.revise(data)
+  data = JSON.load(File.open(jsonfile))
+  revisions = ab.revise(data, :additions => (hint == 'entire'))
   puts JSON.pretty_generate(revisions)
 
 

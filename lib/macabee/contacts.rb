@@ -99,9 +99,15 @@ class Macabee::Contacts
     contact = find(hash)
     if contact.nil?
       # no existing record, so this is an add
-      contact = Macabee::Contact.new
+      [nil, hash]
+      # contact = Macabee::Contact.new
     end
-    contact.compare(hash)
+    changes = contact.compare(hash)
+    if changes.any?
+      [contact.uuid, changes]
+    else
+      nil
+    end
   end
 
   def diffs(contactlist)
@@ -177,12 +183,27 @@ class Macabee::Contacts
   end
 
   # collection of record changes describing AB data state that doesn't match the inbound source records
-  def revise(contactlist)
+  def revise(contactlist, opts = {})
     if contactlist.select {|r| !r['xref'] || !r['xref']['novum']}.any?
       raise "At least one record is missing an xref.novum value"
     end
-    diffs(contactlist)
-    # additions(contactlist).merge(diffs(contactlist))
+
+    changes = diffs(contactlist)
+    if opts[:additions]
+      # Find all the Address Book uids that have been assigned to contacts during the diff process above;
+      # don't treat these records as new additions.
+      ab_changes = changes.map {|k,v| v.select {|chg| chg[1] == 'xref.ab'}}.map(&:first).compact
+      matched_ab_uids = ab_changes.map {|ary| ary[2]}
+
+      adds = additions(contactlist).reject {|k,v| matched_ab_uids.include?(k)}
+
+      {
+        :changes => changes,
+        :additions => adds
+      }
+    else
+      changes
+    end
   end
 
 end

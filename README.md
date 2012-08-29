@@ -35,7 +35,15 @@ Compare a JSON input to the matching contact record in Address Book:
 
 Compare as above, and apply any changes to the Address Book record.
 
-    $ macabee compare inputfile.json
+    $ macabee update inputfile.json
+
+Compare inbound JSON to Address Book, looking for AB changes that must be incorporate back into the source data before running `macabee update` (to avoid overwriting recent local changes):
+
+    $ macabee revise inputfile.json
+
+As above, but treat the inbound JSON as a reflection of the entire Address Book. If there are any local AB records that do not appear in the inbound data, these must be recent local additions and should be emitted as record-add instructions.
+
+    $ macabee revise inputfile.json entire
 
 ## Contributing
 
