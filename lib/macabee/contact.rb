@@ -65,6 +65,11 @@ class Macabee::Contact
   end
 
   def reverse_compare(target_hash)
+    # ignore any xref values in the comparison data except for any AB value
+    target_hash['xref'] = {
+      'ab' => target_hash['xref']['ab']
+    }
+
     Macabee::Contact.compare(target_hash, to_hash)
   end
 
@@ -89,11 +94,19 @@ class Macabee::Contact
             # date-of-birth must be formatted correctly
             dob = v1 && Date.parse(v1).to_time
             set(property, dob)
+
           elsif keyname == 'org.is_org'
             # must merge with other flags
             set_org(property, v1)
+
+          elsif keyname == 'other.note'
+            # for notes, we concatenate, not replace
+            newnote = [v1, v2].join("\n\n")
+            set(property, newnote)
+
           elsif is_array
             raise "SOMETHING IS WRONG - NOT SUPPOSED TO EVER CHANGE ARRAY ENTRIES IN PLACE, ALWAYS DELETE & ADD"
+
           else
             # puts "MAP #{keyname} TO #{property} AND SET TO #{v1}"
             set(property, v1)

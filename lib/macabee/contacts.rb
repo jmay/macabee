@@ -96,7 +96,8 @@ class Macabee::Contacts
 
   def diffs(contactlist)
     contactlist.each_with_object({}) do |data, changes|
-      if data['xref'] && data['xref']['ab'] != 'DELETED'
+      external_uid = data['xref']['novum']
+      if data['xref']['ab'] != 'DELETED'
         # Any record that doesn't have an AB identifier is new, so should be ignore here
         # when looking for AB changes that need to go back.
         # If the identifier says 'DELETED' then we don't want to look for it in AB; we might
@@ -112,14 +113,13 @@ class Macabee::Contacts
           changeset = contact.reverse_compare(data)
           if changeset.any?
             # there have been changes
-            changes[contact.uuid] = changeset
+            changes[external_uid] = changeset
           end
           # if there are no changes, emit nothing for this record
         else
           # This contact does not appear in the target, assume it has been deleted.
           # Construct a changeset that will reflect that back onto the source data.
-          old_uid = data['xref']['ab']
-          changes[old_uid] = [
+          changes[external_uid] = [
             [
               '~',
               'xref.ab',
@@ -135,7 +135,7 @@ class Macabee::Contacts
           already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref']['ab']) == contact.uuid}
           if !already_known
             changeset = contact.reverse_compare(data)
-            changes[contact.uuid] = changeset
+            changes[external_uid] = changeset
           end
         end
       end
@@ -161,7 +161,11 @@ class Macabee::Contacts
 
   # collection of record changes describing AB data state that doesn't match the inbound source records
   def revise(contactlist)
-    additions(contactlist).merge(diffs(contactlist))
+    if contactlist.select {|r| !r['xref'] || !r['xref']['novum']}.any?
+      raise "At least one record is missing an xref.novum value"
+    end
+    diffs(contactlist)
+    # additions(contactlist).merge(diffs(contactlist))
   end
 
 end
