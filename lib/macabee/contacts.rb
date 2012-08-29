@@ -195,11 +195,14 @@ class Macabee::Contacts
       ab_changes = changes.map {|k,v| v.select {|chg| chg[1] == 'xref.ab'}}.map(&:first).compact
       matched_ab_uids = ab_changes.map {|ary| ary[2]}
 
-      adds = additions(contactlist).reject {|k,v| matched_ab_uids.include?(k)}
+      newuids = contacts.map(&:uuid) - contactlist.map{|c| c['xref'] && c['xref']['ab']} - matched_ab_uids
+
+      # adds = additions(contactlist).reject {|k,v| matched_ab_uids.include?(k)}
+      adds = contacts.select {|c| newuids.include?(c.to_hash['xref']['ab'])}
 
       {
         :changes => changes,
-        :additions => adds
+        :additions => adds.map(&:to_hash)
       }
     else
       changes
