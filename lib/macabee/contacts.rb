@@ -98,7 +98,8 @@ class Macabee::Contacts
   def diff(hash)
     contact = find(hash)
     if contact.nil?
-      raise "Unable to find matching contact record."
+      # no existing record, so this is an add
+      contact = Macabee::Contact.new
     end
     contact.compare(hash)
   end

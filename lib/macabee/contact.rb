@@ -38,7 +38,7 @@ class Macabee::Contact
 
 
   # suck all the contacts from local MacOSX Address Book into a single array
-  def initialize(person)
+  def initialize(person = ABPerson.new)
     @person = person
   end
 
@@ -61,6 +61,11 @@ class Macabee::Contact
   end
 
   def compare(target_hash)
+    # ignore any xref values in the comparison data except for any AB value
+    target_hash['xref'] = {
+      'ab' => target_hash['xref']['ab']
+    }
+
     Macabee::Contact.compare(to_hash, target_hash)
   end
 

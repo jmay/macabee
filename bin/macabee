@@ -69,8 +69,8 @@ when 'compare'
   when Array
     diffs = data.map do |hash|
       ab.diff(hash)
-    end
-    if diffs.map(&:any?).any?
+    end.select {|d| d.any?}
+    if diffs.any?
       puts JSON.pretty_generate(diffs)
     else
       $stderr.puts "No changes."
@@ -111,7 +111,8 @@ when 'update'
 
 
 when 'revise'
-  # input should be a representation of the entire contact list; look for local updates
+  # compare the contacts in the input JSON against what is currently in AB
+  # generate instructions to update the input to reflect the AB state
   data = JSON.load(File.open(arg))
   revisions = ab.revise(data)
   puts JSON.pretty_generate(revisions)
