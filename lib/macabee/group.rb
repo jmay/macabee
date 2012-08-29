@@ -44,6 +44,12 @@ class Macabee::Group
     }
   end
 
+  def members
+    ab_group.members.map do |p|
+      Macabee::Contact.new(p)
+    end
+  end
+
   # List of uuid values for all members of the group
   # The OSX `.members` function does not return the list in a consistent order, so sort by UUID value for convenience.
   def contacts

@@ -41,6 +41,13 @@ when 'group'
     raise "No such group in Address Book '#{arg}'"
   end
 
+when 'members'
+  if group = ab.group(arg)
+    puts JSON.pretty_generate(group.members.map {|p| p.to_hash})
+  else
+    raise "No such group in Address Book '#{arg}'"
+  end
+
 when 'compare'
   # look in file for a JSON representation and compare it to version in the AB
   data = JSON.load(File.open(arg))

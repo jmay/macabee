@@ -54,6 +54,15 @@ class Macabee::Contacts
     end
   end
 
+  def group_lookup(name)
+    query = ABGroup.searchElementForProperty(KABNameProperty,
+                    label:nil, key:nil, value: name,
+                    comparison:KABEqual)
+    if rec = ab.recordsMatchingSearchElement(query).first
+      Macabee::Group.new(rec)
+    end
+  end
+
   # suck all the contacts from local MacOSX Address Book into a single array
   def contacts
     @contacts ||= @ab.people.map {|abperson| Macabee::Contact.new(abperson)}
@@ -97,16 +106,33 @@ class Macabee::Contacts
   def diffs(contactlist)
     contactlist.each_with_object({}) do |data, changes|
       external_uid = data['xref']['novum']
-      if data['xref']['ab'] != 'DELETED'
-        # Any record that doesn't have an AB identifier is new, so should be ignore here
-        # when looking for AB changes that need to go back.
+      case data['xref']['ab']
+      when nil
+        # Any record that doesn't have a local AB identifier has never been sychronized with this
+        # AB database. Check to see if a matching record exists that we can coalesce with.
+        if contact = lookup(data)
+          # found one
+          already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref']['ab']) == contact.uuid}
+          if !already_known
+            changeset = contact.reverse_compare(data)
+            changes[external_uid] = changeset
+          end
+        end
+        # If there's no record in AB, that's fine, when we are ready to do an update we will
+        # treat that as an addition and create a new ABPerson. Nothing to emit here.
+
+      when 'DELETED'
         # If the identifier says 'DELETED' then we don't want to look for it in AB; we might
         # want to retain locally-deleted entries in our source, but we don't want to try to
         # reconstitute them in AB.
 
+      else # this looks like a record that we've already synchronized with
         contact = find(data)
         if !contact
+          # That KABUIDProperty value no longer appears. Maybe the UIDs were rebuilt? (That can happen
+          # when you resync with iCloud.) Look for a record with the same name.
           contact = lookup(data)
+          # do I need to repeat the already-known check above?
         end
 
         if contact
@@ -127,16 +153,6 @@ class Macabee::Contacts
               data['xref']['ab']
             ]
           ]
-        end
-      else
-        # check for a matching record that we don't already have in the inbound
-        if contact = lookup(data)
-          # found one
-          already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref']['ab']) == contact.uuid}
-          if !already_known
-            changeset = contact.reverse_compare(data)
-            changes[external_uid] = changeset
-          end
         end
       end
     end
