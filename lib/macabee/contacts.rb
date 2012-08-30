@@ -101,12 +101,13 @@ class Macabee::Contacts
       # no existing record, so this is an add
       [nil, hash]
       # contact = Macabee::Contact.new
-    end
-    changes = contact.compare(hash)
-    if changes.any?
-      [contact.uuid, changes]
     else
-      nil
+      changes = contact.compare(hash)
+      if changes.any?
+        [contact.uuid, changes]
+      else
+        nil
+      end
     end
   end
 

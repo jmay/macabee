@@ -69,7 +69,7 @@ when 'compare'
   when Array
     diffs = data.map do |hash|
       ab.diff(hash)
-    end.select {|d| d.any?}
+    end.compact
     if diffs.any?
       puts JSON.pretty_generate(diffs)
     else
@@ -109,6 +109,27 @@ when 'update'
     raise "Bad object #{data.class} in input"
   end
 
+
+when 'apply'
+  # input JSON is treated as output from the 'compare' stage above
+  # assume that no local changes have occurred since the 'compare' was run, and apply these deltas
+  changes = JSON.load(File.open(arg))
+  changes.each do |uid, rule|
+    # each record is a pair [id, instructions]
+    # if id is not-nil, then instructions are an array of diffs
+    # if id is nil, then instructions are a hash that represents an entire new record
+    case uid
+    when nil
+      # addition
+      contact = Macabee::Contact.new
+      contact.apply(rule)
+    else
+      # update
+      contact = ab.contact(uid)
+      contact.apply(rule)
+    end
+    ab.save!
+  end
 
 when 'revise'
   jsonfile, hint = args

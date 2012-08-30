@@ -81,6 +81,15 @@ class Macabee::Contact
   # WARNING: `#apply` only *stages* the changes to the ABPerson record.
   # In order to persist those changes to the database, you must call `#save` on the ABAddressBook object!
   def apply(diffs)
+    case diffs
+    when Hash
+      puts "CREATE NEW RECORD FOR #{diffs.inspect}"
+    when Array
+      puts "APPLY DELTAS TO #{uuid}: #{diffs.inspect}"
+    else
+      raise "huh?"
+    end
+    return
     diffs.each do |diff|
       flag, key, v1, v2 = diff
       if key =~ /\[/
