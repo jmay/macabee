@@ -29,21 +29,26 @@ Dump out a single contact as JSON, where the `address-book-id` is the internal i
     $ macabee contact {address-book-id}
     $ macabee lookup [firstname] [lastname]
 
-Compare a JSON input to the matching contact record in Address Book:
+Compare a JSON input to the matching contact record in Address Book - to generate a changeset that would update AB to reflect the input:
 
-    $ macabee compare inputfile.json
+    $ macabee compare inputfile.json >changeset.json
 
-Compare as above, and apply any changes to the Address Book record.
+Take a changeset generate as above and apply those changes to the appropriate Address Book records:
+
+    $ macabee apply changeset.json
+
+Combine the `compare` and `apply` stages. Compare and immediately apply any changes to the Address Book record.
 
     $ macabee update inputfile.json
 
-Compare inbound JSON to Address Book, looking for AB changes that must be incorporate back into the source data before running `macabee update` (to avoid overwriting recent local changes):
+The inverse of the 'macabee compare' operation above. Compare inbound JSON to Address Book, looking for AB changes that must be incorporated back into the source data before running `macabee update` (to avoid overwriting recent local changes):
 
     $ macabee revise inputfile.json
 
 As above, but treat the inbound JSON as a reflection of the entire Address Book. If there are any local AB records that do not appear in the inbound data, these must be recent local additions and should be emitted as record-add instructions.
 
     $ macabee revise inputfile.json entire
+
 
 ## Contributing
 

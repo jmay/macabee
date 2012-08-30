@@ -51,34 +51,39 @@ when 'members'
 when 'compare'
   # look in file for a JSON representation and compare it to version in the AB
   data = JSON.load(File.open(arg))
-  case data
-  when Hash
-    diffs = ab.diff(data)
-    if args.include?('xref')
-      # only consider xref (KABUIDProperty) changes
-      diffs = diffs.select {|d| d[1] == 'xref.ab'}
-    end
+  data = [data] if data.is_a?(Hash)
+  # case data
+  # when Hash
+  #   # single-record comparison
 
-    if diffs.any?
-      puts JSON.pretty_generate(diffs)
-      # contact.patch(diffs)
-    else
-      $stderr.puts "No changes."
-    end
+  #   diffs = ab.diff(data)
+  #   if args.include?('xref')
+  #     # only consider xref (KABUIDProperty) changes
+  #     diffs = diffs.select {|d| d[1] == 'xref.ab'}
+  #   end
 
-  when Array
+  #   if diffs.any?
+  #     puts JSON.pretty_generate(diffs)
+  #     # contact.patch(diffs)
+  #   else
+  #     $stderr.puts "No changes."
+  #   end
+
+  # when Array
+  #   # multiple-record comparison
+
     diffs = data.map do |hash|
       ab.diff(hash)
     end.compact
     if diffs.any?
       puts JSON.pretty_generate(diffs)
     else
-      $stderr.puts "No changes."
+      $stderr.puts "No changes in #{data.count} records."
     end
 
-  else
-    raise "Bad object #{data.class} in input"
-  end
+  # else
+  #   raise "Bad object #{data.class} in input"
+  # end
 
 when 'update'
   # same as 'compare', except that the changes should be applied back to the record
@@ -114,21 +119,20 @@ when 'apply'
   # input JSON is treated as output from the 'compare' stage above
   # assume that no local changes have occurred since the 'compare' was run, and apply these deltas
   changes = JSON.load(File.open(arg))
+  additions = []
   changes.each do |uid, rule|
     # each record is a pair [id, instructions]
     # if id is not-nil, then instructions are an array of diffs
     # if id is nil, then instructions are a hash that represents an entire new record
-    case uid
-    when nil
-      # addition
-      contact = Macabee::Contact.new
-      contact.apply(rule)
-    else
-      # update
-      contact = ab.contact(uid)
-      contact.apply(rule)
-    end
-    ab.save!
+    contact = uid ? ab.contact(uid) : ab.blank_contact
+    additions << contact if !uid
+
+    contact.apply(rule)
+  end
+
+  unless args.include?('nosave')
+    ab.save!(additions)
+    $stderr.puts "Saved: #{additions.count} new contacts, #{changes.count - additions.count} updates."
   end
 
 when 'revise'

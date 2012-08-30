@@ -1,6 +1,7 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
 require "treet"
+require "andand"
 
 class Macabee::Contact
   attr_reader :person
@@ -38,7 +39,7 @@ class Macabee::Contact
 
 
   # suck all the contacts from local MacOSX Address Book into a single array
-  def initialize(person = ABPerson.new)
+  def initialize(person) #(person = ABPerson.new)
     @person = person
   end
 
@@ -63,7 +64,7 @@ class Macabee::Contact
   def compare(target_hash)
     # ignore any xref values in the comparison data except for any AB value
     target_hash['xref'] = {
-      'ab' => target_hash['xref']['ab']
+      'ab' => target_hash['xref'].andand['ab']
     }
 
     Macabee::Contact.compare(to_hash, target_hash)
@@ -81,15 +82,6 @@ class Macabee::Contact
   # WARNING: `#apply` only *stages* the changes to the ABPerson record.
   # In order to persist those changes to the database, you must call `#save` on the ABAddressBook object!
   def apply(diffs)
-    case diffs
-    when Hash
-      puts "CREATE NEW RECORD FOR #{diffs.inspect}"
-    when Array
-      puts "APPLY DELTAS TO #{uuid}: #{diffs.inspect}"
-    else
-      raise "huh?"
-    end
-    return
     diffs.each do |diff|
       flag, key, v1, v2 = diff
       if key =~ /\[/
