@@ -11,17 +11,17 @@ arg = args.first
 
 case command
 when 'dump'
-  puts JSON.pretty_generate(ab.to_hash)
+  jj ab.to_hash
 
 when 'groups'
-  puts JSON.pretty_generate(ab.groups.map(&:to_hash))
+  jj ab.groups.map(&:to_hash)
 
 when 'contacts'
-  puts JSON.pretty_generate(ab.contacts.map(&:to_hash))
+  jj ab.contacts.map(&:to_hash)
 
 when 'contact'
   if contact = ab.contact(arg)
-    puts JSON.pretty_generate(contact.to_hash)
+    jj contact.to_hash
   else
     raise "No such person in Address Book '#{arg}'"
   end
@@ -29,61 +29,44 @@ when 'contact'
 when 'lookup'
   firstname, lastname = args
   if contact = ab.lookup(firstname, lastname)
-    puts JSON.pretty_generate(contact.to_hash)
+    jj contact.to_hash
   else
-    raise "No such person in Address Book '#{arg}'"
+    raise "No such person in Address Book '#{args}'"
   end
 
 when 'group'
   if group = ab.group(arg)
-    puts JSON.pretty_generate(group.to_hash)
+    jj group.to_hash
   else
     raise "No such group in Address Book '#{arg}'"
   end
 
 when 'members'
   if group = ab.group(arg)
-    puts JSON.pretty_generate(group.members.map {|p| p.to_hash})
+    jj group.members.map {|p| p.to_hash}
   else
     raise "No such group in Address Book '#{arg}'"
   end
 
+
 when 'compare'
-  # look in file for a JSON representation and compare it to version in the AB
+  # given a JSON representation of one or more contacts,
+  # find each contact in AB and compare the input vs. AB
+  # generate a list of changesets (don't emit anything for unchanged records)
+
   data = JSON.load(File.open(arg))
   data = [data] if data.is_a?(Hash)
-  # case data
-  # when Hash
-  #   # single-record comparison
 
-  #   diffs = ab.diff(data)
-  #   if args.include?('xref')
-  #     # only consider xref (KABUIDProperty) changes
-  #     diffs = diffs.select {|d| d[1] == 'xref.ab'}
-  #   end
+  diffs = data.map do |hash|
+    ab.diff(hash)
+  end.compact
+  if diffs.any?
+    jj diffs
+    $stderr.puts "Found changes in #{diffs.count} out of #{data.count} records."
+  else
+    $stderr.puts "No changes in #{data.count} records."
+  end
 
-  #   if diffs.any?
-  #     puts JSON.pretty_generate(diffs)
-  #     # contact.patch(diffs)
-  #   else
-  #     $stderr.puts "No changes."
-  #   end
-
-  # when Array
-  #   # multiple-record comparison
-
-    diffs = data.map do |hash|
-      ab.diff(hash)
-    end.compact
-    if diffs.any?
-      puts JSON.pretty_generate(diffs)
-    else
-      $stderr.puts "No changes in #{data.count} records."
-    end
-
-  # else
-  #   raise "Bad object #{data.class} in input"
-  # end
 
 when 'update'
   # same as 'compare', except that the changes should be applied back to the record
@@ -142,7 +125,7 @@ when 'revise'
   # generate instructions to update the input to reflect the AB state
   data = JSON.load(File.open(jsonfile))
   revisions = ab.revise(data, :additions => (hint == 'entire'))
-  puts JSON.pretty_generate(revisions)
+  jj revisions
 
 
 else
