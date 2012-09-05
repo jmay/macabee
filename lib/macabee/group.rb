@@ -61,4 +61,18 @@ class Macabee::Group
   def get(property)
     ab_group.valueForProperty(property)
   end
+
+  def set(property, value)
+    ab_group.setValue(value, forProperty: property)
+  end
+
+  # create a new group in Address Book with the provided Macabee::Contact records
+  def self.create(name, contacts)
+    abgroup = ABGroup.alloc.init
+    abgroup.setValue(name, forProperty: KABGroupNameProperty)
+    contacts.each do |contact|
+      abgroup.addMember(contact.person)
+    end
+    Macabee::Group.new(abgroup)
+  end
 end

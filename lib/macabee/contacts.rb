@@ -226,4 +226,10 @@ class Macabee::Contacts
     person.initWithAddressBook(@ab)
     Macabee::Contact.new(person)
   end
+
+  def create_group(groupname, contactlist)
+    group = Macabee::Group.create(groupname, contactlist)
+    @ab.addRecord(group.ab_group)
+    group
+  end
 end

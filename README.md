@@ -74,3 +74,11 @@ https://jmay%40pobox.com@p08-contacts.icloud.com/16422197/carddavhome/card/
 * comparisons for lists of contacts
 * comparison for entire contact database (capture deletes)
 * full code review to correct all the exception handling: return reasonable error classes, maybe don't always raise.
+
+
+require "macabee"
+contacts = Macabee::Contacts.new
+p = contacts.lookup('Mike', 'Ramsey')
+g = contacts.create_group("Test Group", [p])
+contacts.save!
+

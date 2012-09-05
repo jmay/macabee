@@ -1,7 +1,7 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
-require "treet"
-require "andand"
+require "treet" # for Treet::Hash.diff
+# require "andand" # this is causing MacRuby to crash on ABAddressBook.save, so removing
 
 class Macabee::Contact
   attr_reader :person
@@ -63,8 +63,9 @@ class Macabee::Contact
 
   def compare(target_hash)
     # ignore any xref values in the comparison data except for any AB value
+    abxref = target_hash['xref'] && target_hash['xref']['ab']
     target_hash['xref'] = {
-      'ab' => target_hash['xref'].andand['ab']
+      'ab' => abxref
     }
 
     Macabee::Contact.compare(to_hash, target_hash)

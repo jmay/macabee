@@ -6,16 +6,9 @@ unless Kernel.respond_to?(:require_relative)
   end
 end
 
-require "macabee/version"
-
 framework 'AddressBook'
 
-require "macabee/util"
-
-require "macabee/contact"
-require "macabee/group"
-require "macabee/contacts"
-
-module Macabee
-  # Your code goes here...
-end
+require_relative "macabee/version"
+require_relative "macabee/contact"
+require_relative "macabee/group"
+require_relative "macabee/contacts"
