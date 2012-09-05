@@ -29,10 +29,10 @@ class Macabee::Contacts
 
     q1 = ABPerson.searchElementForProperty(KABFirstNameProperty,
                     label:nil, key:nil, value: firstname,
-                    comparison:KABEqual)
+                    comparison:KABEqualCaseInsensitive)
     q2 = ABPerson.searchElementForProperty(KABLastNameProperty,
                     label:nil, key:nil, value: lastname,
-                    comparison:KABEqual)
+                    comparison:KABEqualCaseInsensitive)
     query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2])
     matches = ab.recordsMatchingSearchElement(query)
     if matches.count == 1
@@ -55,7 +55,7 @@ class Macabee::Contacts
   end
 
   def group_lookup(name)
-    query = ABGroup.searchElementForProperty(KABNameProperty,
+    query = ABGroup.searchElementForProperty(KABGroupNameProperty,
                     label:nil, key:nil, value: name,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first

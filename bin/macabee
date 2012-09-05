@@ -1,133 +1,111 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'macabee'
-require "json"
+require 'thor'
 
-ab = Macabee::Contacts.new
+$contacts = Macabee::Contacts.new
 
-command, *args = ARGV
-arg = args.first
-
-case command
-when 'dump'
-  jj ab.to_hash
-
-when 'groups'
-  jj ab.groups.map(&:to_hash)
-
-when 'contacts'
-  jj ab.contacts.map(&:to_hash)
-
-when 'contact'
-  if contact = ab.contact(arg)
-    jj contact.to_hash
-  else
-    raise "No such person in Address Book '#{arg}'"
+class MacabeeCommand < Thor
+  desc "contacts", "dump all Address Book contacts to a single JSON blob"
+  def contacts
+    jj $contacts.contacts.map(&:to_hash)
   end
 
-when 'lookup'
-  firstname, lastname = args
-  if contact = ab.lookup(firstname, lastname)
-    jj contact.to_hash
-  else
-    raise "No such person in Address Book '#{args}'"
+  desc "groups", "dump all Address Book groups to a single JSON blob"
+  def groups
+    jj $contacts.groups.map(&:to_hash)
   end
 
-when 'group'
-  if group = ab.group(arg)
+  # desc "dump", "dump entire Address Book (contacts and groups) to a single JSON blob"
+  # def dump
+  #   jj $contacts.to_hash
+  # end
+
+  desc "show CONTACT", "dump a single Address Book group (by UID or name) to JSON"
+  def show(*args)
+    if args.count > 1
+      contact = $contacts.lookup(*args)
+    else
+      contact = $contacts.contact(args.first)
+    end
+
+    if !contact
+      raise "No such person in Address Book '#{args}'"
+    end
+    jj contact.to_hash
+  end
+
+  desc "group GROUP", "dump a single Address Book group (by UID or name) to JSON"
+  def group(arg)
+    group = $contacts.group(arg)
+    if !group
+      group = $contacts.group_lookup(arg)
+    end
+    if !group
+      raise "No such group in Address Book '#{arg}'"
+    end
     jj group.to_hash
-  else
-    raise "No such group in Address Book '#{arg}'"
+  end
+    
+  desc "members GROUP", "dump a single Address Book group (by UID or name) to JSON"
+  def members(arg)
+    group = $contacts.group(arg)
+    if !group
+      group = $contacts.group_lookup(arg)
+    end
+    if !group
+      raise "No such group in Address Book '#{arg}'"
+    end
+    jj group.members.map(&:to_hash)
   end
 
-when 'members'
-  if group = ab.group(arg)
-    jj group.members.map {|p| p.to_hash}
-  else
-    raise "No such group in Address Book '#{arg}'"
+  desc "revisions JSONFILE", "compute deltas required to revise the inbound JSON to be in sync with the local Address Book"
+  method_option :entire, :type => :boolean, :desc => "compare the entire Address Book, output record adds & deletes"
+  def revisions(jsonfile)
+    input = JSON.load(File.open(jsonfile))
+    revisions = $contacts.revise(input, :additions => options[:entire])
+    jj revisions
   end
 
+  desc "compare JSONFILE", "compute deltas required to alter the local Address Book to match the data in the input JSON"
+  def compare(jsonfile)
+    input = JSON.load(File.open(jsonfile))
+    input = [input] if input.is_a?(Hash) # for a single-record compare
 
-when 'compare'
-  # given a JSON representation of one or more contacts,
-  # find each contact in AB and compare the input vs. AB
-  # generate a list of changesets (don't emit anything for unchanged records)
-
-  data = JSON.load(File.open(arg))
-  data = [data] if data.is_a?(Hash)
-
-  diffs = data.map do |hash|
-    ab.diff(hash)
-  end.compact
-  if diffs.any?
-    jj diffs
-    $stderr.puts "Found changes in #{diffs.count} out of #{data.count} records."
-  else
-    $stderr.puts "No changes in #{data.count} records."
+    diffs = input.map do |contact_hash|
+      $ab.diff(contact_hash)
+    end.compact
+    if diffs.any?
+      jj diffs
+      $stderr.puts "Found changes in #{diffs.count} out of #{input.count} records."
+    else
+      $stderr.puts "No changes in #{input.count} records."
+    end
   end
 
+  desc "apply JSONFILE", "update local Address Book by applying deltas computed from the `compare` step"
+  method_option :dryrun, :type => :boolean, :desc => "stage the changes but do not save to the AB database"
+  def apply(jsonfile)
+    changes = JSON.load(File.open(jsonfile))
+    additions = []
+    changes.each do |uid, rule|
+      # each record is a pair [id, instructions]
+      # if id is not-nil, then instructions are an array of diffs
+      # if id is nil, then instructions are a hash that represents an entire new record
+      contact = uid ? $ab.contact(uid) : $ab.blank_contact
+      additions << contact if !uid
 
-when 'update'
-  # same as 'compare', except that the changes should be applied back to the record
-  data = JSON.load(File.open(arg))
-  case data
-  when Hash
-    contact = ab.apply(data)
-    unless args.include?('nosave')
-      ab.save!
-      $stderr.puts "Saved #{contact}"
+      contact.apply(rule)
     end
 
-  when Array
-    data.each do |rec|
-      begin
-        contact = ab.apply(rec)
-        unless args.include?('nosave')
-          ab.save!
-          $stderr.puts "Saved #{contact}"
-        end
-      rescue Exception => e
-        $stderr.puts "Update failed: #{e.message}"
-        $stderr.puts e.backtrace.map{|s| "\t#{s}"}
-      end
+    $stderr.puts "Applying #{additions.count} new contacts, #{changes.count - additions.count} updates."
+    if options[:dryrun]
+      $stderr.puts "(changes not applied to Address Book)"
+    else
+      ab.save!(additions)
     end
-
-  else
-    raise "Bad object #{data.class} in input"
   end
 
-
-when 'apply'
-  # input JSON is treated as output from the 'compare' stage above
-  # assume that no local changes have occurred since the 'compare' was run, and apply these deltas
-  changes = JSON.load(File.open(arg))
-  additions = []
-  changes.each do |uid, rule|
-    # each record is a pair [id, instructions]
-    # if id is not-nil, then instructions are an array of diffs
-    # if id is nil, then instructions are a hash that represents an entire new record
-    contact = uid ? ab.contact(uid) : ab.blank_contact
-    additions << contact if !uid
-
-    contact.apply(rule)
-  end
-
-  unless args.include?('nosave')
-    ab.save!(additions)
-    $stderr.puts "Saved: #{additions.count} new contacts, #{changes.count - additions.count} updates."
-  end
-
-when 'revise'
-  jsonfile, hint = args
-
-  # compare the contacts in the input JSON against what is currently in AB
-  # generate instructions to update the input to reflect the AB state
-  data = JSON.load(File.open(jsonfile))
-  revisions = ab.revise(data, :additions => (hint == 'entire'))
-  jj revisions
-
-
-else
-  raise "Unknown command '#{command}'"
 end
+
+MacabeeCommand.start

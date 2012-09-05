@@ -5,3 +5,4 @@ gemspec
 
 gem 'treet', :path => "~/dev/treet"
 gem 'andand'
+gem 'thor'
