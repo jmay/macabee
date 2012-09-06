@@ -106,6 +106,10 @@ class MacabeeCommand < Thor
     end
   end
 
+  desc "version", "show Macabee version"
+  def version
+    puts "Macabee #{Macabee::VERSION}"
+  end
 end
 
 MacabeeCommand.start
