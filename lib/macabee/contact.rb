@@ -28,13 +28,6 @@ class Macabee::Contact
     'emails' => [KABEmailProperty, 'email'],
     'addresses' => [KABAddressProperty, :to_ab_address],
     'links' => []
-    # 'links' => THIS IS SPECIAL
-
-    # 'address[]' => 'address[].label',
-    # 'address[].street' => 'address[].street',
-
-    # 'phones' => :phone,
-    # 'emails' => :email
   }
 
 

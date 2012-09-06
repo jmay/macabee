@@ -3,8 +3,14 @@
 class Macabee::Group
   attr_reader :ab_group
 
-  def initialize(group)
-    @ab_group = group
+  def initialize(arg)
+    if arg.is_a?(ABGroup)
+      @ab_group = arg
+    else
+      # create a new empty group in Address Book with this name
+      @ab_group = ABGroup.alloc.init
+      set(KABGroupNameProperty, arg[:name])
+    end
   end
 
   def transformed
@@ -44,6 +50,10 @@ class Macabee::Group
     }
   end
 
+  def name
+    ab_group.name
+  end
+
   def members
     ab_group.members.map do |p|
       Macabee::Contact.new(p)
@@ -66,13 +76,7 @@ class Macabee::Group
     ab_group.setValue(value, forProperty: property)
   end
 
-  # create a new group in Address Book with the provided Macabee::Contact records
-  def self.create(name, contacts)
-    abgroup = ABGroup.alloc.init
-    abgroup.setValue(name, forProperty: KABGroupNameProperty)
-    contacts.each do |contact|
-      abgroup.addMember(contact.person)
-    end
-    Macabee::Group.new(abgroup)
+  def <<(contact)
+    ab_group.addMember(contact.person)
   end
 end

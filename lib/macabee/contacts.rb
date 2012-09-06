@@ -227,9 +227,12 @@ class Macabee::Contacts
     Macabee::Contact.new(person)
   end
 
-  def create_group(groupname, contactlist)
-    group = Macabee::Group.create(groupname, contactlist)
+  def create_group(groupname, contactlist = [])
+    group = Macabee::Group.new(:name => groupname)
     @ab.addRecord(group.ab_group)
+    contactlist.each do |contact|
+      group << contact
+    end
     group
   end
 end

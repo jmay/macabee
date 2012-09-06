@@ -16,12 +16,12 @@ class MacabeeCommand < Thor
     jj $contacts.groups.map(&:to_hash)
   end
 
-  # desc "dump", "dump entire Address Book (contacts and groups) to a single JSON blob"
-  # def dump
-  #   jj $contacts.to_hash
-  # end
+  desc "dump", "dump entire Address Book (contacts and groups) to a single JSON blob"
+  def dump
+    jj $contacts.to_hash
+  end
 
-  desc "show CONTACT", "dump a single Address Book group (by UID or name) to JSON"
+  desc "show CONTACT", "dump a single Address Book contact (by UID or name) to JSON"
   def show(*args)
     if args.count > 1
       contact = $contacts.lookup(*args)
@@ -35,7 +35,7 @@ class MacabeeCommand < Thor
     jj contact.to_hash
   end
 
-  desc "group GROUP", "dump a single Address Book group (by UID or name) to JSON"
+  desc "group GROUP", "dump a single Address Book group (by UID or name) to JSON, with just the UID values of the members"
   def group(arg)
     group = $contacts.group(arg)
     if !group
@@ -46,8 +46,8 @@ class MacabeeCommand < Thor
     end
     jj group.to_hash
   end
-    
-  desc "members GROUP", "dump a single Address Book group (by UID or name) to JSON"
+
+  desc "members GROUP", "dump the members of a single Address Book group (by UID or name) to JSON"
   def members(arg)
     group = $contacts.group(arg)
     if !group
