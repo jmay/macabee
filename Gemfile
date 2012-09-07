@@ -4,4 +4,3 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'treet', :path => "~/dev/treet"
-gem 'thor'

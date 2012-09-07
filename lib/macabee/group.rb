@@ -22,6 +22,17 @@ class Macabee::Group
   end
 
   def compare(target_hash)
+    # ignore any xref values in the comparison data except for any AB value
+    abxref = target_hash['xref'] && target_hash['xref']['ab']
+    target_hash['xref'] = {
+      'ab' => abxref
+    }
+
+    Macabee::Group.compare(to_hash, target_hash)
+  end
+
+  def self.compare(h1, h2)
+    Treet::Hash.diff(h1, h2)
   end
 
   def patch(diffs)
