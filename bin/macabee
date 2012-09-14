@@ -103,7 +103,7 @@ class MacabeeCommand < Thor
     if options[:dryrun]
       $stderr.puts "(changes not applied to Address Book)"
     else
-      ab.save!(additions)
+      $contacts.save!(additions)
     end
   end
 

@@ -17,8 +17,30 @@ class Macabee::Contacts
     end
   end
 
-  def lookup_by_name(firstname,lastname)
+  def lookup_query(hash)
+    conditions = []
+    conditions << ABPerson.searchElementForProperty(KABFirstNameProperty,
+                    label:nil, key:nil, value: hash[:firstname],
+                    comparison:KABEqualCaseInsensitive)
+    conditions << ABPerson.searchElementForProperty(KABLastNameProperty,
+                    label:nil, key:nil, value: hash[:lastname],
+                    comparison:KABEqualCaseInsensitive)
+    if hash[:orgname]
+      conditions << ABPerson.searchElementForProperty(KABOrganizationProperty,
+                    label:nil, key:nil, value: hash[:orgname],
+                    comparison:KABEqualCaseInsensitive)
+    end
 
+    query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: conditions)
+    matches = ab.recordsMatchingSearchElement(query)
+    if matches.count == 1
+      rec = matches.first
+      Macabee::Contact.new(rec)
+    else
+      # return nothing if there are no matches, or many
+      # TODO: figure out better multi-match handling; any reliable way to guess which one we want?
+      nil
+    end
   end
 
   def lookup(*args)
@@ -33,27 +55,16 @@ class Macabee::Contacts
       orgname = d['org'] && d['org']['organization']
     end
 
+    # must have at least one of these
     return nil if firstname.nil? && lastname.nil? && orgname.nil?
 
-    q1 = ABPerson.searchElementForProperty(KABFirstNameProperty,
-                    label:nil, key:nil, value: firstname,
-                    comparison:KABEqualCaseInsensitive)
-    q2 = ABPerson.searchElementForProperty(KABLastNameProperty,
-                    label:nil, key:nil, value: lastname,
-                    comparison:KABEqualCaseInsensitive)
-    q3 = ABPerson.searchElementForProperty(KABOrganizationProperty,
-                    label:nil, key:nil, value: orgname,
-                    comparison:KABEqualCaseInsensitive)
-    query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2, q3])
-    matches = ab.recordsMatchingSearchElement(query)
-    if matches.count == 1
-      rec = matches.first
-      Macabee::Contact.new(rec)
-    else
-      # return nothing if there are no matches, or many
-      # TODO: figure out better multi-match handling; any reliable way to guess which one we want?
-      nil
+    match = lookup_query(:firstname => firstname, :lastname => lastname, :orgname => orgname)
+    if !match && orgname
+      # if this record specifies an organization, then
+      # make a second attempt for a match, ignoring the organization
+      match = lookup_query(:firstname => firstname, :lastname => lastname)
     end
+    match
   end
 
   def group(ab_id)
