@@ -74,7 +74,7 @@ class MacabeeCommand < Thor
     input = [input] if input.is_a?(Hash) # for a single-record compare
 
     diffs = input.map do |contact_hash|
-      $ab.diff(contact_hash)
+      $contacts.diff(contact_hash)
     end.compact
     if diffs.any?
       jj diffs
@@ -93,8 +93,8 @@ class MacabeeCommand < Thor
       # each record is a pair [id, instructions]
       # if id is not-nil, then instructions are an array of diffs
       # if id is nil, then instructions are a hash that represents an entire new record
-      contact = uid ? $ab.contact(uid) : $ab.blank_contact
-      additions << contact if !uid
+      contact = uid ? $contacts.contact(uid) : $contacts.blank_contact
+      additions << contact if uid.nil?
 
       contact.apply(rule)
     end

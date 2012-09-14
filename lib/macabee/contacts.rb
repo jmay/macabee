@@ -17,15 +17,23 @@ class Macabee::Contacts
     end
   end
 
+  def lookup_by_name(firstname,lastname)
+
+  end
+
   def lookup(*args)
     case args.count
     when 2
       firstname, lastname = args
+      orgname = nil
     when 1
       d = args.first
       firstname = d['name'] && d['name']['first']
       lastname = d['name'] && d['name']['last']
+      orgname = d['org'] && d['org']['organization']
     end
+
+    return nil if firstname.nil? && lastname.nil? && orgname.nil?
 
     q1 = ABPerson.searchElementForProperty(KABFirstNameProperty,
                     label:nil, key:nil, value: firstname,
@@ -33,7 +41,10 @@ class Macabee::Contacts
     q2 = ABPerson.searchElementForProperty(KABLastNameProperty,
                     label:nil, key:nil, value: lastname,
                     comparison:KABEqualCaseInsensitive)
-    query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2])
+    q3 = ABPerson.searchElementForProperty(KABOrganizationProperty,
+                    label:nil, key:nil, value: orgname,
+                    comparison:KABEqualCaseInsensitive)
+    query = ABSearchElement.searchElementForConjunction(KABSearchAnd, children: [q1, q2, q3])
     matches = ab.recordsMatchingSearchElement(query)
     if matches.count == 1
       rec = matches.first
@@ -87,12 +98,12 @@ class Macabee::Contacts
 
   def find(hash)
     abid = hash['xref'] && hash['xref']['ab']
-    contact = contact(abid)
-    if contact.nil?
-      contact = lookup(hash['name']['first'], hash['name']['last'])
+    rec = contact(abid)
+    if rec.nil?
+      rec = lookup(hash)
       # if this finds a match, then the local Address Book UUID has changed
     end
-    contact
+    rec
   end
 
   def diff(hash)
