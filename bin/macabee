@@ -89,14 +89,14 @@ class MacabeeCommand < Thor
   def apply(jsonfile)
     changes = JSON.load(File.open(jsonfile))
     additions = []
-    changes.each do |uid, rule|
+    changes.each do |uid, deltas|
       # each record is a pair [id, instructions]
       # if id is not-nil, then instructions are an array of diffs
       # if id is nil, then instructions are a hash that represents an entire new record
       contact = uid ? $contacts.contact(uid) : $contacts.blank_contact
       additions << contact if uid.nil?
 
-      contact.apply(rule)
+      contact.apply(deltas)
     end
 
     $stderr.puts "Applying #{additions.count} new contacts, #{changes.count - additions.count} updates."
