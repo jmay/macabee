@@ -117,9 +117,9 @@ class Macabee::Contacts
     end
   end
 
-  def diffs(contactlist)
+  def diffs(contactlist, opts)
     contactlist.each_with_object({}) do |data, changes|
-      external_uid = data['xref']['novum']
+      external_uid = data['xref'][opts[:xref]]
       case data['xref']['ab']
       when nil
         # Any record that doesn't have a local AB identifier has never been sychronized with this
@@ -195,11 +195,12 @@ class Macabee::Contacts
 
   # collection of record changes describing AB data state that doesn't match the inbound source records
   def revise(contactlist, opts = {})
-    if contactlist.select {|r| !r['xref'] || !r['xref']['novum']}.any?
-      raise "At least one record is missing an xref.novum value"
+    foreign_xref = opts[:xref]
+    if contactlist.select {|r| !r['xref'] || !r['xref'][foreign_xref]}.any?
+      raise "At least one record is missing an xref.#{foreign_xref} value"
     end
 
-    changes = diffs(contactlist)
+    changes = diffs(contactlist, opts)
     if opts[:additions]
       # Find all the Address Book uids that have been assigned to contacts during the diff process above;
       # don't treat these records as new additions.

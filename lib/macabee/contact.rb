@@ -1,7 +1,7 @@
 # Macabee::Contact is ruby representation of a single MacOSX Address Book entry
 
 require "treet" # for Treet::Hash.diff
-# require "andand" # this is causing MacRuby to crash on ABAddressBook.save, so removing
+require "date" # for Time#to_date
 
 class Macabee::Contact
   attr_reader :person

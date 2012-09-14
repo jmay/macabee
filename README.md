@@ -67,18 +67,9 @@ https://jmay%40pobox.com@p08-contacts.icloud.com/16422197/carddavhome/card/
   macabee compare xxx.json xref => emit only xref diffs
   macabee fixref xxx.json => apply xref diffs only back to the json, emit an updated json, stderr msg w summary
 
-* redo `macabee` tool to use thor or other command-line framework
 * refac: format conversion (currently only used for other.dob)
 * promote fields from 'other' to top-level strings? (notes, dob) For sharing these individual values. Or allow sharing filters to use subkeys like 'other.notes'
 * add specs: comparison, patching - need to mock AB, or create & delete a private AB for testing. Travis-CI does not support macruby (no OSX servers)
 * comparisons for lists of contacts
 * comparison for entire contact database (capture deletes)
 * full code review to correct all the exception handling: return reasonable error classes, maybe don't always raise.
-
-
-require "macabee"
-contacts = Macabee::Contacts.new
-p = contacts.lookup('Mike', 'Ramsey')
-g = contacts.create_group("Test Group", [p])
-contacts.save!
-
