@@ -17,8 +17,8 @@ Gem::Specification.new do |gem|
 
   gem.add_dependency 'thor'
 
-  gem.add_development_dependency "rake", "~> 0.9.2"
-  gem.add_development_dependency "rspec", "~> 2.9.0"
-  gem.add_development_dependency "guard-rspec", "~> 0.7.0"
-  gem.add_development_dependency "ruby_gntp", "~> 0.3.4"
+  # gem.add_development_dependency "rake", "~> 0.9.2"
+  # gem.add_development_dependency "rspec", "~> 2.9.0"
+  # gem.add_development_dependency "guard-rspec", "~> 0.7.0"
+  # gem.add_development_dependency "ruby_gntp", "~> 0.3.4"
 end
