@@ -117,6 +117,16 @@ class Macabee::Contacts
     rec
   end
 
+  def group_find(hash)
+    abid = hash['xref'] && hash['xref']['ab']
+    rec = group(abid)
+    if rec.nil?
+      rec = group_lookup(hash['name'])
+      # if this finds a match, then the local Address Book UUID has changed
+    end
+    rec
+  end
+
   def diff(hash)
     contact = find(hash)
     if contact.nil?
@@ -194,6 +204,52 @@ class Macabee::Contacts
     end
   end
 
+  def group_diffs(grouplist, opts)
+    grouplist.each_with_object({}) do |data, changes|
+      external_uid = data['xref'][opts[:xref]]
+      case data['xref']['ab']
+      when nil
+        if group = group_lookup(data['name'])
+          # found one
+          already_known = (grouplist - [group]).find {|c| (c['xref'] && c['xref']['ab']) == group.uuid}
+          if !already_known
+            changeset = group.reverse_compare(data)
+            changes[external_uid] = changeset
+          end
+        end
+
+      when 'DELETED'
+        # If the identifier says 'DELETED' then we don't want to look for it in AB; we might
+        # want to retain locally-deleted entries in our source, but we don't want to try to
+        # reconstitute them in AB.
+
+      else # this looks like a record that we've already synchronized with
+        group = group_find(data)
+        if !group
+          group = group_lookup(data)
+        end
+
+        if group
+          changeset = group.reverse_compare(data)
+          if changeset.any?
+            # there have been changes
+            changes[external_uid] = changeset
+          end
+          # if there are no changes, emit nothing for this record
+        else
+          changes[external_uid] = [
+            [
+              '~',
+              'xref.ab',
+              'DELETED',
+              data['xref']['ab']
+            ]
+          ]
+        end
+      end
+    end
+  end
+
   def apply(hash)
     contact = find(hash)
     diffs = contact.compare(hash)
@@ -209,11 +265,6 @@ class Macabee::Contacts
 
     @ab.save
   end
-
-  # def additions(contactlist)
-  #   newkeys = contacts_indexed.keys - contactlist.map{|c| c['xref'] && c['xref']['ab']}
-  #   newkeys.each_with_object({}) {|k, hash| hash[k] = contacts_indexed[k].to_hash}
-  # end
 
   # collection of record changes describing AB data state that doesn't match the inbound source records
   def revise(contactlist, opts = {})
@@ -233,6 +284,31 @@ class Macabee::Contacts
 
       # adds = additions(contactlist).reject {|k,v| matched_ab_uids.include?(k)}
       adds = contacts.select {|c| newuids.include?(c.to_hash['xref']['ab'])}
+
+      {
+        :changes => changes,
+        :additions => adds.map(&:to_hash)
+      }
+    else
+      changes
+    end
+  end
+
+  # same as #revise, but for groups
+  def revise_groups(grouplist, opts = {})
+    foreign_xref = opts[:xref]
+    if grouplist.select {|r| !r['xref'] || !r['xref'][foreign_xref]}.any?
+      raise "At least one record is missing an xref.#{foreign_xref} value"
+    end
+
+    changes = group_diffs(grouplist, opts)
+    if opts[:additions]
+      ab_changes = changes.map {|k,v| v.select {|chg| chg[1] == 'xref.ab'}}.map(&:first).compact
+      matched_ab_uids = ab_changes.map {|ary| ary[2]}
+
+      newuids = groups.map(&:uuid) - grouplist.map{|c| c['xref'] && c['xref']['ab']} - matched_ab_uids
+
+      adds = groups.select {|c| newuids.include?(c.to_hash['xref']['ab'])}
 
       {
         :changes => changes,

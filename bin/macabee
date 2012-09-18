@@ -68,6 +68,16 @@ class MacabeeCommand < Thor
     jj revisions
   end
 
+  desc "grouprevs JSONFILE", "compute deltas required to revise the inbound JSON to be in sync with the local Address Book"
+  method_option :entire, :type => :boolean, :desc => "compare the entire Address Book, output record adds & deletes"
+  method_option :xref, :required => true, :desc => "external reference field, must appear under xref key"
+  def grouprevs(jsonfile)
+    input = JSON.load(File.open(jsonfile))
+    revisions = $contacts.revise_groups(input, :additions => options[:entire], :xref => options[:xref])
+    jj revisions
+  end
+
+
   desc "compare JSONFILE", "compute deltas required to alter the local Address Book to match the data in the input JSON"
   def compare(jsonfile)
     input = JSON.load(File.open(jsonfile))
