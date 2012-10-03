@@ -3,7 +3,7 @@
 class Macabee::Group
   attr_reader :ab_group
 
-  def initialize(arg)
+  def initialize(arg, opts = {})
     if arg.is_a?(ABGroup)
       @ab_group = arg
     else
@@ -11,6 +11,7 @@ class Macabee::Group
       @ab_group = ABGroup.alloc.init
       set(KABGroupNameProperty, arg[:name])
     end
+    @macabee = opts[:macabee]
   end
 
   def transformed
@@ -27,9 +28,9 @@ class Macabee::Group
 
   def compare(target_hash)
     # ignore any xref values in the comparison data except for any AB value
-    abxref = target_hash['xref'] && target_hash['xref']['ab']
+    abxref = target_hash['xref'] && target_hash['xref'][@macabee.xrefkey]
     target_hash['xref'] = {
-      'ab' => abxref
+      @macabee.xrefkey => abxref
     }
 
     Macabee::Group.compare(to_hash, target_hash)
@@ -38,7 +39,7 @@ class Macabee::Group
   def reverse_compare(target_hash)
     # ignore any xref values in the comparison data except for any AB value
     target_hash['xref'] = {
-      'ab' => target_hash['xref']['ab']
+      @macabee.xrefkey => target_hash['xref'][@macabee.xrefkey]
     }
 
     Macabee::Group.compare(target_hash, to_hash)
@@ -57,7 +58,7 @@ class Macabee::Group
   end
 
   def uuid
-    to_hash['xref']['ab']
+    to_hash['xref'][@macabee.xrefkey]
   end
 
   def lookup_uuid
@@ -66,7 +67,7 @@ class Macabee::Group
 
   def xref
     {
-      'ab' => lookup_uuid
+      @macabee.xrefkey => lookup_uuid
     }
   end
 

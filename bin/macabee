@@ -3,30 +3,36 @@
 require 'macabee'
 require 'thor'
 
-$contacts = Macabee::Contacts.new
-
 class MacabeeCommand < Thor
+  no_tasks do
+    def macabee(opts = {})
+      @macabee ||= Macabee::Contacts.new(opts)
+    end
+  end
+
   desc "contacts", "dump all Address Book contacts to a single JSON blob"
+  method_option :xref, :desc => "override default 'ab' keyname for reference identifier field"
   def contacts
-    jj $contacts.contacts.map(&:to_hash)
+    jj macabee(options).contacts.map(&:to_hash)
   end
 
   desc "groups", "dump all Address Book groups to a single JSON blob"
+  method_option :xref, :desc => "override default 'ab' keyname for reference identifier field"
   def groups
-    jj $contacts.groups.map(&:to_hash)
+    jj macabee(options).groups.map(&:to_hash)
   end
 
   desc "dump", "dump entire Address Book (contacts and groups) to a single JSON blob"
   def dump
-    jj $contacts.to_hash
+    jj macabee.to_hash
   end
 
   desc "show CONTACT", "dump a single Address Book contact (by UID or name) to JSON"
   def show(*args)
     if args.count > 1
-      contact = $contacts.lookup(*args)
+      contact = macabee.lookup(*args)
     else
-      contact = $contacts.contact(args.first)
+      contact = macabee.contact(args.first)
     end
 
     if !contact
@@ -37,9 +43,9 @@ class MacabeeCommand < Thor
 
   desc "group GROUP", "dump a single Address Book group (by UID or name) to JSON, with just the UID values of the members"
   def group(arg)
-    group = $contacts.group(arg)
+    group = macabee.group(arg)
     if !group
-      group = $contacts.group_lookup(arg)
+      group = macabee.group_lookup(arg)
     end
     if !group
       raise "No such group in Address Book '#{arg}'"
@@ -49,9 +55,9 @@ class MacabeeCommand < Thor
 
   desc "members GROUP", "dump the members of a single Address Book group (by UID or name) to JSON"
   def members(arg)
-    group = $contacts.group(arg)
+    group = macabee.group(arg)
     if !group
-      group = $contacts.group_lookup(arg)
+      group = macabee.group_lookup(arg)
     end
     if !group
       raise "No such group in Address Book '#{arg}'"
@@ -64,7 +70,7 @@ class MacabeeCommand < Thor
   method_option :xref, :required => true, :desc => "external reference field, must appear under xref key"
   def revisions(jsonfile)
     input = JSON.load(File.open(jsonfile))
-    revisions = $contacts.revise(input, :additions => options[:entire], :xref => options[:xref])
+    revisions = macabee.revise(input, :additions => options[:entire], :xref => options[:xref])
     jj revisions
   end
 
@@ -73,7 +79,7 @@ class MacabeeCommand < Thor
   method_option :xref, :required => true, :desc => "external reference field, must appear under xref key"
   def grouprevs(jsonfile)
     input = JSON.load(File.open(jsonfile))
-    revisions = $contacts.revise_groups(input, :additions => options[:entire], :xref => options[:xref])
+    revisions = macabee.revise_groups(input, :additions => options[:entire], :xref => options[:xref])
     jj revisions
   end
 
@@ -84,7 +90,7 @@ class MacabeeCommand < Thor
     input = [input] if input.is_a?(Hash) # for a single-record compare
 
     diffs = input.map do |contact_hash|
-      $contacts.diff(contact_hash)
+      macabee.diff(contact_hash)
     end.compact
     if diffs.any?
       jj diffs
@@ -103,7 +109,7 @@ class MacabeeCommand < Thor
       # each record is a pair [id, instructions]
       # if id is not-nil, then instructions are an array of diffs
       # if id is nil, then instructions are a hash that represents an entire new record
-      contact = uid ? $contacts.contact(uid) : $contacts.blank_contact
+      contact = uid ? macabee.contact(uid) : macabee.blank_contact
       additions << contact if uid.nil?
 
       contact.apply(deltas)
@@ -113,7 +119,7 @@ class MacabeeCommand < Thor
     if options[:dryrun]
       $stderr.puts "(changes not applied to Address Book)"
     else
-      $contacts.save!(additions)
+      macabee.save!(additions)
     end
   end
 

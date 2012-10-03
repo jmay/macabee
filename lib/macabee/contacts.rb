@@ -1,11 +1,12 @@
 # Macabee::Contacts is ruby representation of Mac Address Book
 
 class Macabee::Contacts
-  attr_reader :ab
+  attr_reader :ab, :xrefkey
 
-  def initialize
+  def initialize(opts = {})
     # Apple docs recommend using `addressBook`, not `sharedAddressBook`
     @ab = ABAddressBook.addressBook
+    @xrefkey = opts[:xref] || 'ab'
   end
 
   def contact(ab_id)
@@ -13,7 +14,7 @@ class Macabee::Contacts
                     label:nil, key:nil, value: ab_id,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first
-      Macabee::Contact.new(rec)
+      Macabee::Contact.new(rec, :macabee => self)
     end
   end
 
@@ -35,7 +36,7 @@ class Macabee::Contacts
     matches = ab.recordsMatchingSearchElement(query)
     if matches.count == 1
       rec = matches.first
-      Macabee::Contact.new(rec)
+      Macabee::Contact.new(rec, :macabee => self)
     else
       # return nothing if there are no matches, or many
       # TODO: figure out better multi-match handling; any reliable way to guess which one we want?
@@ -72,7 +73,7 @@ class Macabee::Contacts
                     label:nil, key:nil, value: ab_id,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first
-      Macabee::Group.new(rec)
+      Macabee::Group.new(rec, :macabee => self)
     end
   end
 
@@ -81,17 +82,17 @@ class Macabee::Contacts
                     label:nil, key:nil, value: name,
                     comparison:KABEqual)
     if rec = ab.recordsMatchingSearchElement(query).first
-      Macabee::Group.new(rec)
+      Macabee::Group.new(rec, :macabee => self)
     end
   end
 
   # suck all the contacts from local MacOSX Address Book into a single array
   def contacts
-    @contacts ||= @ab.people.map {|abperson| Macabee::Contact.new(abperson)}
+    @contacts ||= @ab.people.map {|abperson| Macabee::Contact.new(abperson, :macabee => self)}
   end
 
   def groups
-    @ab.groups.map {|abgroup| Macabee::Group.new(abgroup)}
+    @ab.groups.map {|abgroup| Macabee::Group.new(abgroup, :macabee => self)}
   end
 
   def to_hash
@@ -108,7 +109,7 @@ class Macabee::Contacts
   # end
 
   def find(hash)
-    abid = hash['xref'] && hash['xref']['ab']
+    abid = hash['xref'] && hash['xref'][xrefkey]
     rec = contact(abid)
     if rec.nil?
       rec = lookup(hash)
@@ -118,7 +119,7 @@ class Macabee::Contacts
   end
 
   def group_find(hash)
-    abid = hash['xref'] && hash['xref']['ab']
+    abid = hash['xref'] && hash['xref'][xrefkey]
     rec = group(abid)
     if rec.nil?
       rec = group_lookup(hash['name'])
@@ -137,7 +138,6 @@ class Macabee::Contacts
       # aren't actually creating the record here.
       changes = contact.compare(hash).reject{|x| x[1] == 'xref.ab'}
       [nil, changes]
-      # contact = Macabee::Contact.new
     else
       changes = contact.compare(hash)
       changes = contact.compare(hash).reject{|x| x[1] == 'xref.ab'}
@@ -152,13 +152,13 @@ class Macabee::Contacts
   def diffs(contactlist, opts)
     contactlist.each_with_object({}) do |data, changes|
       external_uid = data['xref'][opts[:xref]]
-      case data['xref']['ab']
+      case data['xref'][xrefkey]
       when nil
         # Any record that doesn't have a local AB identifier has never been sychronized with this
         # AB database. Check to see if a matching record exists that we can coalesce with.
         if contact = lookup(data)
           # found one
-          already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref']['ab']) == contact.uuid}
+          already_known = (contactlist - [contact]).find {|c| (c['xref'] && c['xref'][xrefkey]) == contact.uuid}
           if !already_known
             changeset = contact.reverse_compare(data)
             changes[external_uid] = changeset
@@ -196,7 +196,7 @@ class Macabee::Contacts
               '~',
               'xref.ab',
               'DELETED',
-              data['xref']['ab']
+              data['xref'][xrefkey]
             ]
           ]
         end
@@ -207,11 +207,11 @@ class Macabee::Contacts
   def group_diffs(grouplist, opts)
     grouplist.each_with_object({}) do |data, changes|
       external_uid = data['xref'][opts[:xref]]
-      case data['xref']['ab']
+      case data['xref'][xrefkey]
       when nil
         if group = group_lookup(data['name'])
           # found one
-          already_known = (grouplist - [group]).find {|c| (c['xref'] && c['xref']['ab']) == group.uuid}
+          already_known = (grouplist - [group]).find {|c| (c['xref'] && c['xref'][xrefkey]) == group.uuid}
           if !already_known
             changeset = group.reverse_compare(data)
             changes[external_uid] = changeset
@@ -242,7 +242,7 @@ class Macabee::Contacts
               '~',
               'xref.ab',
               'DELETED',
-              data['xref']['ab']
+              data['xref'][xrefkey]
             ]
           ]
         end
@@ -280,10 +280,10 @@ class Macabee::Contacts
       ab_changes = changes.map {|k,v| v.select {|chg| chg[1] == 'xref.ab'}}.map(&:first).compact
       matched_ab_uids = ab_changes.map {|ary| ary[2]}
 
-      newuids = contacts.map(&:uuid) - contactlist.map{|c| c['xref'] && c['xref']['ab']} - matched_ab_uids
+      newuids = contacts.map(&:uuid) - contactlist.map{|c| c['xref'] && c['xref'][xrefkey]} - matched_ab_uids
 
       # adds = additions(contactlist).reject {|k,v| matched_ab_uids.include?(k)}
-      adds = contacts.select {|c| newuids.include?(c.to_hash['xref']['ab'])}
+      adds = contacts.select {|c| newuids.include?(c.to_hash['xref'][xrefkey])}
 
       {
         :changes => changes,
@@ -306,9 +306,9 @@ class Macabee::Contacts
       ab_changes = changes.map {|k,v| v.select {|chg| chg[1] == 'xref.ab'}}.map(&:first).compact
       matched_ab_uids = ab_changes.map {|ary| ary[2]}
 
-      newuids = groups.map(&:uuid) - grouplist.map{|c| c['xref'] && c['xref']['ab']} - matched_ab_uids
+      newuids = groups.map(&:uuid) - grouplist.map{|c| c['xref'] && c['xref'][xrefkey]} - matched_ab_uids
 
-      adds = groups.select {|c| newuids.include?(c.to_hash['xref']['ab'])}
+      adds = groups.select {|c| newuids.include?(c.to_hash['xref'][xrefkey])}
 
       {
         :changes => changes,
@@ -323,11 +323,11 @@ class Macabee::Contacts
   def blank_contact
     person = ABPerson.new
     person.initWithAddressBook(@ab)
-    Macabee::Contact.new(person)
+    Macabee::Contact.new(person, :macabee => self)
   end
 
   def create_group(groupname, contactlist = [])
-    group = Macabee::Group.new(:name => groupname)
+    group = Macabee::Group.new(:name => groupname, :macabee => self)
     @ab.addRecord(group.ab_group)
     contactlist.each do |contact|
       group << contact
