@@ -23,22 +23,26 @@ class MacabeeCommand < Thor
   end
 
   desc "dump", "dump entire Address Book (contacts and groups) to a single JSON blob"
+  method_option :xref, :desc => "override default 'ab' keyname for reference identifier field"
   def dump
-    jj macabee.to_hash
+    jj macabee(options).to_hash
   end
 
-  desc "show CONTACT", "dump a single Address Book contact (by UID or name) to JSON"
-  def show(*args)
+  desc "contact CONTACT", "dump a single Address Book contact (by UID or name) to JSON"
+  method_option :xref, :desc => "override default 'ab' keyname for reference identifier field"
+  def contact(*args)
     if args.count > 1
-      contact = macabee.lookup(*args)
+      contact = macabee(options).lookup(*args)
     else
-      contact = macabee.contact(args.first)
+      contact = macabee(options).contact(args.first)
     end
 
-    if !contact
-      raise "No such person in Address Book '#{args}'"
+    if contact
+      jj contact.to_hash
+    else
+      $stderr.puts "No such person in Address Book: #{args.join(' ')}"
+      exit 1
     end
-    jj contact.to_hash
   end
 
   desc "group GROUP", "dump a single Address Book group (by UID or name) to JSON, with just the UID values of the members"
@@ -47,22 +51,28 @@ class MacabeeCommand < Thor
     if !group
       group = macabee.group_lookup(arg)
     end
-    if !group
-      raise "No such group in Address Book '#{arg}'"
+
+    if group
+      jj group.to_hash
+    else
+      $stderr.puts "No such group in Address Book '#{arg}'"
+      exit 1
     end
-    jj group.to_hash
   end
 
   desc "members GROUP", "dump the members of a single Address Book group (by UID or name) to JSON"
   def members(arg)
-    group = macabee.group(arg)
+    group = macabee(options).group(arg)
     if !group
-      group = macabee.group_lookup(arg)
+      group = macabee(options).group_lookup(arg)
     end
-    if !group
-      raise "No such group in Address Book '#{arg}'"
+
+    if group
+      jj group.members.map(&:to_hash)
+    else
+      $stderr.puts "No such group in Address Book '#{arg}'"
+      exit 1
     end
-    jj group.members.map(&:to_hash)
   end
 
   desc "revisions JSONFILE", "compute deltas required to revise the inbound JSON to be in sync with the local Address Book"
