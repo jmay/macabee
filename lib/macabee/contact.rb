@@ -141,7 +141,8 @@ class Macabee::Contact
             if property == []
               del_link(index.to_i, v1)
             else
-              delmulti(property.first, index.to_i)
+              # delmulti(property.first, index.to_i)
+              delcomplex(keyname, v1)
             end
           else
             # scalar property
@@ -448,6 +449,15 @@ class Macabee::Contact
       addmulti(property, valueToInsert, :to_ab_im_handle)
     else
       raise "Ouch!"
+    end
+  end
+
+  def delcomplex(keyname, value)
+    currentlist = self.send(keyname)
+    if currentindex = currentlist.index(value)
+      delmulti(PropertyMappings[keyname].first, currentindex)
+    else
+      $stderr.puts "EXPECTED VALUE #{value} NOT FOUND FOR #{keyname} ON CONTACT #{uuid}"
     end
   end
 
